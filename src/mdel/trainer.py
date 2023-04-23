@@ -1,4 +1,4 @@
-# pylint: disable=missing-docstring,C0301,W1203,R1720,C0116,R0912,R0914,R0916,C0103,W0613,R0915,W0632
+# pylint: disable=missing-docstring,C0301,W1203,R1720,C0116,R0912,R0914,R0916,C0103,W0613,R0915,W0632,E0401
 # Copyright 2020 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
