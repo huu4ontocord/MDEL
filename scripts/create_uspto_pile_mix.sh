@@ -14,6 +14,3 @@ fi
 
 # Run the command using the selected python command
 $PYTHON_CMD -c "from mdel.pile_utils import create_pile_domain_mix; create_pile_domain_mix('$DOMAIN_FILE_PATH', '$PILE_FILE_PATH', '$OUTPUT_DIR')"
-
-
-python -c "from mdel.pile_utils import create_pile_domain_mix; create_pile_domain_mix('$DOMAIN_FILE_PATH', '$PILE_FILE_PATH', '$OUTPUT_DIR')"
