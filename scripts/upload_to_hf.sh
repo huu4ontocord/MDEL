@@ -1,5 +1,5 @@
 #!/bin/bash
-ZST_FILES="../data2/mix_uspto_all/*.jsonl.zst"
+ZST_FILES="../data/mix_uspto_all/*.jsonl.zst"
 
 if command -v python3 &>/dev/null; then
   PYTHON_CMD=python3
