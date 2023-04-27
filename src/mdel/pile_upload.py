@@ -1,10 +1,17 @@
 import argparse
-from datasets import load_dataset
+
+from huggingface_hub import HfApi
+api = HfApi()
 
 
 def upload_dataset(file_path, hf_repo):
-    dataset = load_dataset("json", data_files = file_path)
-    dataset.push_to_hub(hf_repo)
+    name = file_path.split('/')[-1]
+    api.upload_file(
+    path_or_fileobj=file_path,
+    repo_id=hf_repo,
+    repo_type="dataset",
+    path_in_repo=f"data/{name}",
+)
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Upload dataset to Hugging Face Hub')
