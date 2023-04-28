@@ -9,6 +9,7 @@ fi
 
 for SPLIT in "test" "val" "train"
 do
-  PILE_FILE_PATH="../$SPLIT/test/*.jsonl.zst"
+  PILE_FILE_PATH="../data/pile/$SPLIT/*.jsonl.zst"
+  OUTPUT_DIR="../data/mix_uspto_all/$SPLIT"
   $PYTHON_CMD -c "from mdel.pile_utils import *; create_pile_domain_mix('$PILE_FILE_PATH', '$PILE_FILE_PATH', '$OUTPUT_DIR')"
 done
