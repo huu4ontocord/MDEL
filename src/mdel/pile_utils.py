@@ -11,6 +11,8 @@ from tqdm.contrib.concurrent import process_map
 
 __HERE__ = pathlib.Path(__file__).parent.resolve()
 
+SHARD_SIZE = 100000
+
 
 def jsonl_extract_transform_write(infile, outfile, map_func, filter_func, max_lines=-1):
     line_counter = 0
@@ -67,9 +69,9 @@ def pile_mapper(args):
     input_file_path, output_file_path, max_lines = args
     with open(output_file_path, 'wb+') as outfile:
         with open(input_file_path, 'rb') as infile_d:
-            num_domain_samples = jsonl_extract_transform_write(infile_d, outfile, pile_get_text, None,
-                                                               max_lines=max_lines)
-            return num_domain_samples
+            num_samples = jsonl_extract_transform_write(infile_d, outfile, pile_get_text, None,
+                                                        max_lines=max_lines)
+            return num_samples
 
 
 def create_pile_domain_mix(domain_data_file_path: str,
@@ -101,11 +103,15 @@ def create_pile_domain_mix(domain_data_file_path: str,
     print('Processing Pile data samples')
     pile_file_path_expanded, pile_processed_paths = process_mix_file_paths(pile_file_path,
                                                                            -1, output_dir, 'pile')
-    process_map(pile_mapper,
-                zip(pile_file_path_expanded,
-                    pile_processed_paths,
-                    len(pile_file_path_expanded) * [num_domain_samples]),
-                max_workers=max_workers)
+    num_pile_samples = 0
+    pile_file_idx = 0
+    while num_pile_samples < num_domain_samples:
+        cur_num_samples = pile_mapper(
+            (pile_file_path_expanded[pile_file_idx],
+             pile_processed_paths[pile_file_idx],
+             num_domain_samples))
+        num_pile_samples += cur_num_samples[0]
+        pile_file_idx += 1
 
 
 def process_mix_file_paths(domain_data_file_path, max_files, output_dir, name_prefix):
@@ -137,7 +143,7 @@ def read_pile_texts(input_file_path):
             return [ujson.loads(line)['text'] for line in text_stream]
 
 
-def split_pile(input_file_path, shard_size=100000):
+def split_pile(input_file_path, shard_size=SHARD_SIZE):
     print(input_file_path)
     resolved_files = glob.glob(os.path.abspath(input_file_path))
 
@@ -178,10 +184,11 @@ if __name__ == '__main__':
 
     # create_pile_domain_mix(pile_file_path, pile_file_path, output_dir, max_files=-1, max_workers=4)
     # split_pile('/Users/vmay/Documents/git/MDEL/data/pile/train/*.jsonl.zst')
-    print(read_pile_texts('/Users/vmay/Documents/git/MDEL/data/mix_uspto_all/val/domain_val_0.jsonl.zst')[150])
-    print(read_pile_texts('/Users/vmay/Documents/git/MDEL/data/mix_uspto_all/val/domain_val_0.jsonl.zst')[151])
-    print(read_pile_texts('/Users/vmay/Documents/git/MDEL/data/mix_uspto_all/test/domain_test_0.jsonl.zst')[150])
-    print(read_pile_texts('/Users/vmay/Documents/git/MDEL/data/mix_uspto_all/test/domain_test_0.jsonl.zst')[151])
-    print(read_pile_texts('/Users/vmay/Documents/git/MDEL/data/mix_uspto_all/test/pile_test_0.jsonl.zst')[150])
-    print(read_pile_texts('/Users/vmay/Documents/git/MDEL/data/mix_uspto_all/test/pile_test_0.jsonl.zst')[151])
-    print(read_pile_texts('/Users/vmay/Documents/git/MDEL/data/mix_uspto_all/train/domain_01_0.jsonl.zst')[151])
+    # print(read_pile_texts('/Users/vmay/Documents/git/MDEL/data/mix_uspto_all/val/domain_val_0.jsonl.zst')[150])
+    # print(read_pile_texts('/Users/vmay/Documents/git/MDEL/data/mix_uspto_all/val/domain_val_0.jsonl.zst')[151])
+    # print(read_pile_texts('/Users/vmay/Documents/git/MDEL/data/mix_uspto_all/test/domain_test_0.jsonl.zst')[150])
+    # print(read_pile_texts('/Users/vmay/Documents/git/MDEL/data/mix_uspto_all/test/domain_test_0.jsonl.zst')[151])
+    # print(read_pile_texts('/Users/vmay/Documents/git/MDEL/data/mix_uspto_all/test/pile_test_0.jsonl.zst')[150])
+    # print(read_pile_texts('/Users/vmay/Documents/git/MDEL/data/mix_uspto_all/test/pile_test_0.jsonl.zst')[151])
+    print(len(read_pile_texts('/Users/vmay/Documents/git/MDEL/data/mix_uspto_all/train/domain_01_0.jsonl.zst')))
+    print(len(read_pile_texts('/Users/vmay/Documents/git/MDEL/data/mix_uspto_all/train/pile_01_0.jsonl.zst')))

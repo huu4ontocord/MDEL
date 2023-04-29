@@ -15,7 +15,7 @@ do
   OUTPUT_DIR="../data/mix_uspto_all/$SPLIT"
 
   # Shard the input data
-  $PYTHON_CMD -c "from mdel.pile_utils import *; split_pile('$PILE_FILE_PATH')"
+  #$PYTHON_CMD -c "from mdel.pile_utils import *; split_pile('$PILE_FILE_PATH')"
 
   $PYTHON_CMD -c "from mdel.pile_utils import *; create_pile_domain_mix('$PILE_FILE_PATH', '$PILE_FILE_PATH', '$OUTPUT_DIR', '$SUBSET_NAME')"
 done
