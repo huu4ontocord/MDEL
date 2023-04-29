@@ -11,24 +11,34 @@ from tqdm.contrib.concurrent import process_map
 
 __HERE__ = pathlib.Path(__file__).parent.resolve()
 
+SHARD_SIZE = 100000
+
 
 def jsonl_extract_transform_write(infile, outfile, map_func, filter_func, max_lines=-1):
     line_counter = 0
+    num_failed = 0
     dctx = zstandard.ZstdDecompressor()
+
     with dctx.stream_reader(infile) as reader:
         cctx = zstandard.ZstdCompressor()
         with cctx.stream_writer(outfile, closefd=False) as writer:
             text_stream = io.TextIOWrapper(reader, encoding='utf-8')
             for line in text_stream:
-                if filter_func is not None and filter_func(line):
+                try:
+                    if filter_func is not None and filter_func(line):
+                        continue
+
+                    func_output = map_func(line)
+                    writer.write(f'{func_output}\n'.encode())
+                    line_counter += 1
+                    if -1 < max_lines <= line_counter:
+                        print(f'Stopping after {line_counter} lines')
+                        break
+                except Exception:
+                    num_failed += 1
                     continue
-                func_output = map_func(line)
-                writer.write(f'{func_output}\n'.encode())
-                line_counter += 1
-                if -1 < max_lines <= line_counter:
-                    print(f'Stopping after {line_counter} lines')
-                    break
-    return line_counter
+
+    return line_counter, num_failed
 
 
 def pile_get_text(line):
@@ -39,22 +49,35 @@ def pile_get_text(line):
     return text_json
 
 
-def pile_filter_subset(line, subset_name='USPTO Backgrounds'):
+def pile_filter_subset(line, subset_name):
     json_obj = ujson.loads(line)
     return json_obj['meta']['pile_set_name'] != subset_name
 
 
-def create_pile_domain_mix_mapper(args):
-    domain_data_file_path, output_file_path = args
+def domain_mapper(args):
+    input_file_path, output_file_path, subset_name = args
     with open(output_file_path, 'wb+') as outfile:
-        with open(domain_data_file_path, 'rb') as infile_d:
-            num_domain_samples = jsonl_extract_transform_write(infile_d, outfile, pile_get_text, pile_filter_subset)
+        with open(input_file_path, 'rb') as infile:
+            num_domain_samples = jsonl_extract_transform_write(infile,
+                                                               outfile,
+                                                               pile_get_text,
+                                                               lambda x: pile_filter_subset(x, subset_name))
             return num_domain_samples
+
+
+def pile_mapper(args):
+    input_file_path, output_file_path, max_lines = args
+    with open(output_file_path, 'wb+') as outfile:
+        with open(input_file_path, 'rb') as infile_d:
+            num_samples = jsonl_extract_transform_write(infile_d, outfile, pile_get_text, None,
+                                                        max_lines=max_lines)
+            return num_samples
 
 
 def create_pile_domain_mix(domain_data_file_path: str,
                            pile_file_path: str,
                            output_dir: str,
+                           subset_name: str,
                            max_files: int = -1,
                            max_workers: int = multiprocessing.cpu_count()):
     if not os.path.exists(output_dir):
@@ -62,35 +85,43 @@ def create_pile_domain_mix(domain_data_file_path: str,
     else:
         raise IOError('Output path already exists')
 
-    domain_data_file_path_expanded = glob.glob(domain_data_file_path)
-    if max_files > 0:
-        print(f'Using {max_files} domain data files')
-        domain_data_file_path_expanded = domain_data_file_path_expanded[:max_files]
-
-    domain_data_processed_paths = [os.path.join(output_dir, os.path.basename(x))
-                                   for x in domain_data_file_path_expanded]
+    domain_data_file_path_expanded, domain_data_processed_paths = process_mix_file_paths(domain_data_file_path,
+                                                                                         max_files, output_dir,
+                                                                                         'domain')
     print('Processing domain data samples')
-    file_sample_counts = process_map(create_pile_domain_mix_mapper,
-                                     zip(domain_data_file_path_expanded, domain_data_processed_paths),
+    file_sample_counts = process_map(domain_mapper,
+                                     zip(domain_data_file_path_expanded,
+                                         domain_data_processed_paths,
+                                         len(domain_data_processed_paths) * [subset_name]),
                                      max_workers=max_workers)
 
-    num_domain_samples = sum(file_sample_counts)
-    print(f'Number of domain samples: {num_domain_samples}')
+    num_domain_samples = sum([x[0] for x in file_sample_counts])
+    num_failed_samples = sum([x[1] for x in file_sample_counts])
+    fail_rate = 1000 * num_failed_samples / num_domain_samples
+    print(f'Number of domain samples: {num_domain_samples}, rate of samples failed to parse {fail_rate}%')
 
-    print('Processing Pile data samples')  # Find a way to paralellize this, as the Pile files are 15gb each.
-    pile_output_path = os.path.join(output_dir, 'pile.jsonl.zst')
-    with open(pile_output_path, 'wb+') as outfile:
-        with open(pile_file_path, 'rb') as infile_p:
-            jsonl_extract_transform_write(infile_p, outfile, pile_get_text, None, num_domain_samples)
+    print('Processing Pile data samples')
+    pile_file_path_expanded, pile_processed_paths = process_mix_file_paths(pile_file_path,
+                                                                           -1, output_dir, 'pile')
+    num_pile_samples = 0
+    pile_file_idx = 0
+    while num_pile_samples < num_domain_samples:
+        cur_num_samples = pile_mapper(
+            (pile_file_path_expanded[pile_file_idx],
+             pile_processed_paths[pile_file_idx],
+             num_domain_samples))
+        num_pile_samples += cur_num_samples[0]
+        pile_file_idx += 1
 
-    if len(domain_data_processed_paths) == 1:
-        print('Splitting domain data')
-        split_pile(domain_data_processed_paths[0])
-        os.remove(domain_data_processed_paths[0])
 
-    print('Splitting Pile data')
-    split_pile(pile_output_path)
-    os.remove(pile_output_path)
+def process_mix_file_paths(domain_data_file_path, max_files, output_dir, name_prefix):
+    domain_data_file_path_expanded = glob.glob(domain_data_file_path)
+    if max_files > 0:
+        print(f'Using {max_files} data files')
+        domain_data_file_path_expanded = domain_data_file_path_expanded[:max_files]
+    domain_data_processed_paths = [os.path.join(output_dir, name_prefix + '_' + os.path.basename(x))
+                                   for x in domain_data_file_path_expanded]
+    return domain_data_file_path_expanded, domain_data_processed_paths
 
 
 def read_pile_texts(input_file_path):
@@ -112,40 +143,52 @@ def read_pile_texts(input_file_path):
             return [ujson.loads(line)['text'] for line in text_stream]
 
 
-def split_pile(input_file_path, shard_size=100000):
-    dctx = zstandard.ZstdDecompressor()
-    with open(input_file_path, 'rb') as infile:
-        with dctx.stream_reader(infile) as reader:
-            text_stream = io.TextIOWrapper(reader, encoding='utf-8')
-            cctx = zstandard.ZstdCompressor()
-            shard_num = -1
-            writer = None
-            outfile = None
+def split_pile(input_file_path, shard_size=SHARD_SIZE):
+    print(input_file_path)
+    resolved_files = glob.glob(os.path.abspath(input_file_path))
 
-            for line_counter, line in enumerate(tqdm(text_stream)):
-                if line_counter % shard_size == 0:
-                    if writer is not None:
-                        writer.close()
-                    if outfile is not None:
-                        outfile.close()
+    for resolved_file in resolved_files:
+        dctx = zstandard.ZstdDecompressor()
+        with open(resolved_file, 'rb') as infile:
+            with dctx.stream_reader(infile) as reader:
+                text_stream = io.TextIOWrapper(reader, encoding='utf-8')
+                cctx = zstandard.ZstdCompressor()
+                shard_num = -1
+                writer = None
+                outfile = None
 
-                    shard_num += 1
-                    output_file_path = os.path.join(
-                        os.path.dirname(input_file_path),
-                        os.path.splitext(input_file_path)[0].replace('.jsonl', '') + f'_{shard_num}.jsonl.zst')
-                    outfile = open(output_file_path, 'wb')
-                    writer = cctx.stream_writer(outfile, closefd=False)
+                for line_counter, line in enumerate(tqdm(text_stream)):
+                    if line_counter % shard_size == 0:
+                        if writer is not None:
+                            writer.close()
+                        if outfile is not None:
+                            outfile.close()
 
-                writer.write(f'{line}\n'.encode())
+                        shard_num += 1
+                        output_file_path = os.path.join(
+                            os.path.dirname(resolved_file),
+                            os.path.splitext(resolved_file)[0].replace('.jsonl', '') + f'_{shard_num}.jsonl.zst')
+                        outfile = open(output_file_path, 'wb')
+                        writer = cctx.stream_writer(outfile, closefd=False)
+
+                    writer.write(line.encode(encoding='utf-8'))
+        os.remove(resolved_file)
 
 
 if __name__ == '__main__':
     repo_root = __HERE__.parent.parent
     # domain_data_file_path = str(repo_root / 'data/pile_uspto/*.jsonl.zst')
     # pile_file_path = str(repo_root / 'data/pile_01/01.jsonl.zst')
-    pile_file_path = str(repo_root / 'data/pile_01/01.jsonl.zst')
-    output_dir = str(repo_root / 'data/mix_uspto_all_2' / 'train')
+    pile_file_path = '/Users/vmay/Documents/git/MDEL/data/pile/val/*.jsonl.zst'
+    output_dir = str(repo_root / 'data/mix_uspto_all_3' / 'val')
 
-    create_pile_domain_mix(pile_file_path, pile_file_path, output_dir, max_files=-1, max_workers=4)
-    # split_file('/Users/vmay/Documents/git/MDEL/data/mix_uspto_all/pile.jsonl.zst')
-    # print(read_pile_texts(str(output_dir))[0])
+    # create_pile_domain_mix(pile_file_path, pile_file_path, output_dir, max_files=-1, max_workers=4)
+    # split_pile('/Users/vmay/Documents/git/MDEL/data/pile/train/*.jsonl.zst')
+    # print(read_pile_texts('/Users/vmay/Documents/git/MDEL/data/mix_uspto_all/val/domain_val_0.jsonl.zst')[150])
+    # print(read_pile_texts('/Users/vmay/Documents/git/MDEL/data/mix_uspto_all/val/domain_val_0.jsonl.zst')[151])
+    # print(read_pile_texts('/Users/vmay/Documents/git/MDEL/data/mix_uspto_all/test/domain_test_0.jsonl.zst')[150])
+    # print(read_pile_texts('/Users/vmay/Documents/git/MDEL/data/mix_uspto_all/test/domain_test_0.jsonl.zst')[151])
+    # print(read_pile_texts('/Users/vmay/Documents/git/MDEL/data/mix_uspto_all/test/pile_test_0.jsonl.zst')[150])
+    # print(read_pile_texts('/Users/vmay/Documents/git/MDEL/data/mix_uspto_all/test/pile_test_0.jsonl.zst')[151])
+    print(len(read_pile_texts('/Users/vmay/Documents/git/MDEL/data/mix_uspto_all/train/domain_01_0.jsonl.zst')))
+    print(len(read_pile_texts('/Users/vmay/Documents/git/MDEL/data/mix_uspto_all/train/pile_01_0.jsonl.zst')))
