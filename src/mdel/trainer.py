@@ -421,7 +421,7 @@ def main():
         n_params = sum({p.data_ptr(): p.numel() for p in model.parameters()}.values())
         logger.info(f"Training new model from scratch - Total size={n_params / 2 ** 20:.2f}M params")
 
-    training_layers = [int(l) for l in model_args.training_layers.split(",")]
+    training_layers = [int(layer) for layer in model_args.training_layers.split(",")]
     # freeze model
     model.requires_grad_(False)
     # unfreeze the layer to be trained
