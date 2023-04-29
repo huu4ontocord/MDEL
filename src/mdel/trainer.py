@@ -67,11 +67,11 @@ class ModelArguments:
             )
         },
     )
-    training_layer: int = field(
-        default=8,
+    training_layers: str = field(
+        default="9,10,11,12,13",
         metadata={
             "help": (
-                "layer to train."
+                "layers to train, comma separated."
             )
         },
     )
@@ -421,10 +421,12 @@ def main():
         n_params = sum({p.data_ptr(): p.numel() for p in model.parameters()}.values())
         logger.info(f"Training new model from scratch - Total size={n_params / 2 ** 20:.2f}M params")
 
+    training_layers = [int(l) for l in model_args.training_layers.split(",")]
     # freeze model
     model.requires_grad_(False)
     # unfreeze the layer to be trained
-    model.gpt_neox.layers[model_args.training_layer].requires_grad_(True)
+    for layer in training_layers:
+        model.gpt_neox.layers[layer].requires_grad_(True)
 
     # We resize the embeddings only when necessary to avoid index errors. If you are creating a model from scratch
     # on a small vocab and want a smaller embedding size, remove this test.
