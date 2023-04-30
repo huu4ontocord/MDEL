@@ -27,5 +27,5 @@ The resulting dataset will reside in `data/mix_uspto.json.zst`
 4. Edit the variable `DATASET` in script `src/mdel/train.sh` to match a valid
    dataset name on the
    [MDEL HF](https://huggingface.co/Multi-Domain-Expert-Layers).
-5. Run the above script to start the training
+5. Run the above script in background mode to start the training: `./train.sh &`
 6. The trained model should be uploaded to the MDEL HF
