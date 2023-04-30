@@ -20,6 +20,8 @@ accelerate launch trainer.py \
         --gradient_accumulation_steps 8 \
         --do_train \
         --do_eval \
+        --evluation_strategy steps \
+        --eval_steps 200 \
         --overwrite_output_dir \
         --logging_steps 20 \
         --max_steps 1000
