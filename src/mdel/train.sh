@@ -1,11 +1,10 @@
 #!/bin/bash
 
 DATASET=uspto
-export WANDB_PROJECT=pythia-1b-deduped-layer-test
-
 TRAINING_LAYER=9,10,11,12,13
 
-export WANDB_NAME="layer_$TRAINING_LAYER_$DATASET"
+export WANDB_PROJECT=pythia-1b-deduped-layer-test-$DATASET
+export WANDB_NAME="layer_$TRAINING_LAYER"
 accelerate launch trainer.py \
         --dataset_name Multi-Domain-Expert-Layers/$DATASET \
         --model_name_or_path EleutherAI/pythia-1b-deduped \
