@@ -6,8 +6,9 @@ else
 fi
 
 HF_REPO=Multi-Domain-Expert-Layers/uspto
+
 for SPLIT in "test" "val" "train"
 do
-  ZST_FILES="../data/mix_uspto_all/$SPLIT/*.jsonl.zst"
-  $PYTHON_CMD ../src/mdel/pile_upload.py --file-path "$ZST_FILES" --hf-repo $HF_REPO --split $SPLIT
+  FOLDER_PATH=$(readlink -f ../data/mix_uspto_all/$SPLIT/)
+  $PYTHON_CMD src/mdel/pile_upload.py --folder-path "$FOLDER_PATH" --hf-repo $HF_REPO --split $SPLIT
 done
