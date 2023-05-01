@@ -5,6 +5,19 @@ TRAINING_LAYER=9,10,11,12,13
 
 export WANDB_PROJECT=pythia-1b-deduped-layer-test-$DATASET
 export WANDB_NAME="layer_$TRAINING_LAYER"
+
+VENV_DIR="../../venv"
+if [ -d "$VENV_DIR" ]; then
+    echo "Virtual environment exists."
+else
+    echo "Error: virtual environment is missing"
+    exit 1
+fi
+
+# Activate the venv
+echo "Activating virtual environment..."
+source $VENV_DIR/bin/activate
+
 accelerate launch trainer.py \
         --dataset_name Multi-Domain-Expert-Layers/$DATASET \
         --model_name_or_path EleutherAI/pythia-1b-deduped \
@@ -27,3 +40,6 @@ accelerate launch trainer.py \
         --push_to_hub true \
         --push_to_hub_model_id expert-$DATASET \
         --push_to_hub_organization Multi-Domain-Expert-Layers
+
+echo "Deactivating virtual environment..."
+deactivate
