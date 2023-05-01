@@ -10,12 +10,12 @@ def upload_dataset(folder_path, hf_repo, split):
     auth_token = os.getenv('HF_ACCESS_TOKEN')
 
     print(f"Uploading {folder_path} to {hf_repo}...")
-    
+
     api.upload_folder(folder_path=folder_path,
-                    repo_id=hf_repo,
-                    repo_type="dataset",
-                    path_in_repo=f"data/{split}",
-                    use_auth_token=auth_token)
+                      repo_id=hf_repo,
+                      repo_type="dataset",
+                      path_in_repo=f"data/{split}",
+                      use_auth_token=auth_token)
 
 
 def parse_args():
