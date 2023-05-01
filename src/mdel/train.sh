@@ -5,6 +5,7 @@ TRAINING_LAYER=9,10,11,12,13
 
 export WANDB_PROJECT=pythia-1b-deduped-layer-test-$DATASET
 export WANDB_NAME="layer_$TRAINING_LAYER"
+export WANDB_ENTITY=ontocord
 
 VENV_DIR="../../venv"
 if [ -d "$VENV_DIR" ]; then
