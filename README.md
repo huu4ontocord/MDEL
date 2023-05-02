@@ -4,20 +4,41 @@ Multi-Domain Expert Layers
 
 # Environment Setup
 
-To set up the development environment, run `make venv setup_dev`. This will
-setup the pre-commit hooks.
+To set up the development environment, run `make setup_dev`. This will setup the
+pre-commit hooks.
 
 ## Creating Expert Datasets
 
 First, make sure you followed the Environment Setup guidelines.
 
-To mix the USPTO data with Pile data, run the following scripts:
+To create an expert dataset using the Pile data, follow these steps:
 
-1. `scripts/get_uspto_data.sh`
-2. `scripts/get_pile_shard1_data.sh`
-3. `scripts/create_uspto_pile_mix.sh`
+1. Download the Pile shard 1 data: `./scripts/get_pile_shard1_data.sh`
+2. To set the domain, edit the variable `SUBSET_NAME` in
+   `scripts/create_domain_pile_mix.sh`. This should be set to a valid value of
+   the Pile's variable `pile_set_name`. A list of valid values can be found
+   below.
+3. Run the above script to process the dataset
+4. Authenticate into Hugginface:
+   `export HF_ACCESS_TOKEN={YOUR HUGGINGFACE TOKEN}`
+5. Set the dataset name in `scripts/upload_to_hf.sh`
+6. Run the above script to upload the processed dataset to HuggingFace
 
-The resulting dataset will reside in `data/mix_uspto.json.zst`
+### Pile Subsets
+
+- Pile-CC
+- PubMed Central
+- Books3†
+- OpenWebText2
+- ArXiv
+- Github
+- FreeLaw
+- Stack Exchange
+- USPTO Backgrounds
+- PubMed Abstracts
+- Gutenberg (PG-19)†
+- OpenSubtitles†
+- Wikipedia (en)†
 
 # Training Expert Models
 
@@ -29,3 +50,9 @@ The resulting dataset will reside in `data/mix_uspto.json.zst`
    [MDEL HF](https://huggingface.co/Multi-Domain-Expert-Layers).
 5. Run the above script in background mode to start the training: `./train.sh &`
 6. The trained model should be uploaded to the MDEL HF
+
+# References
+
+Gao, L., Biderman, S., Black, S., Golding, L., Hoppe, T., Foster, C., ... &
+Leahy, C. (2020).The pile: An 800gb dataset of diverse text for language
+modeling. _arXiv preprint arXiv:2101.00027_.
