@@ -24,59 +24,34 @@ To create an expert dataset using the Pile data, follow these steps:
 5. Set the dataset name in `scripts/upload_to_hf.sh`
 6. Run the above script to upload the processed dataset to HuggingFace
 
-vicuna dataset. built suite of tools. they struggle as well. Had idea of
-smmaller baby sitter models. With langchain hijack the agents thoughts and
-actions to see if it is on track.
-
-### Subsets
+### Pile Subsets
 
 - Pile-CC
-
 - PubMed Central
-
 - Books3†
-
 - OpenWebText2
-
 - ArXiv
-
 - Github
-
 - FreeLaw
-
 - Stack Exchange
-
 - USPTO Backgrounds
-
 - PubMed Abstracts
-
 - Gutenberg (PG-19)†
-
 - OpenSubtitles†
-
 - Wikipedia (en)†
 
-- DM Mathematics†
+# Training Expert Models
 
-- Ubuntu IRC
+1. Clone this repo and follow the Environment Setup instructions
+2. Set up HF authentication: `export HUGGING_FACE_HUB_TOKEN=[FILL ME]`
+3. Set up W&B authentication: `export WANDB_API_KEY=[FILL ME]`
+4. Edit the variable `DATASET` in script `src/mdel/train.sh` to match a valid
+   dataset name on the
+   [MDEL HF](https://huggingface.co/Multi-Domain-Expert-Layers).
+5. Run the above script in background mode to start the training: `./train.sh &`
+6. The trained model should be uploaded to the MDEL HF
 
-- BookCorpus2
-
-- EuroParl†
-
-- HackerNews
-
-- YoutubeSubtitles
-
-- PhilPapers
-
-- NIH ExPorter
-
-- Enron Emails†
-
-- The Pile (Gao et al., 2020, p. 3)
-
-#### References
+# References
 
 Gao, L., Biderman, S., Black, S., Golding, L., Hoppe, T., Foster, C., ... &
 Leahy, C. (2020).The pile: An 800gb dataset of diverse text for language
