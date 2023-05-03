@@ -259,7 +259,6 @@ def main():
     # Python/PyTorch versions.
     send_example_telemetry("run_clm", model_args, data_args)
 
-
     # Setup logging
     logging.basicConfig(
         format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
