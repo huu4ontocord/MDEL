@@ -259,16 +259,6 @@ def main():
     # Python/PyTorch versions.
     send_example_telemetry("run_clm", model_args, data_args)
 
-    if training_args.report_to[0] == "wandb" and training_args.local_rank == 0:
-        import wandb
-
-        wandb_name = model_args.model_name_or_path
-        wandb.init(
-            project="mixture",
-            entity="ontocord",
-            resume=training_args.resume_from_checkpoint,
-            name=f"{wandb_name}-{training_args.output_dir}",
-        )
 
     # Setup logging
     logging.basicConfig(
