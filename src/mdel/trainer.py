@@ -32,15 +32,18 @@ import evaluate
 import torch
 import transformers
 from datasets import load_dataset
+from huggingface_hub import ModelCard, Repository
 from transformers import (CONFIG_MAPPING, MODEL_FOR_CAUSAL_LM_MAPPING,
                           AutoConfig, AutoModelForCausalLM, AutoTokenizer,
                           HfArgumentParser, Trainer, TrainingArguments,
                           default_data_collator, is_torch_tpu_available,
                           set_seed)
+from transformers.modelcard import TrainingSummary
 from transformers.testing_utils import CaptureLogger
 from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import send_example_telemetry
 from transformers.utils.versions import require_version
+from wandb.sdk.lib.runid import generate_id
 
 # Will error if the minimal version of Transformers is not installed. Remove at your own risks.
 # check_min_version("4.28.0.dev0")
@@ -67,11 +70,11 @@ class ModelArguments:
             )
         },
     )
-    training_layer: int = field(
-        default=8,
+    training_layers: str = field(
+        default="9,10,11,12,13",
         metadata={
             "help": (
-                "layer to train."
+                "layers to train, comma separated."
             )
         },
     )
@@ -222,18 +225,72 @@ class DataTrainingArguments:
                 assert extension in ["csv", "json", "txt"], "`validation_file` should be a csv, a json or a txt file."
 
 
+@dataclass
+class UploadArguments:
+
+    wandb_project: Optional[str] = field(
+        default=os.environ.get("WANDB_PROJECT"),
+        metadata={
+            "help": (
+                "The wandb project name to upload the model card to."
+            )
+        },
+    )
+
+    wandb_run_name: Optional[str] = field(
+        default=os.environ.get("WANDB_NAME"),
+        metadata={
+            "help": (
+                "The wandb run name to upload the model card to."
+            )
+        },
+    )
+
+    wandb_entity: Optional[str] = field(
+        default=os.environ.get("WANDB_ENTITY"),
+        metadata={
+            "help": (
+                "The wandb entity name to upload the model card to."
+            )
+        },
+    )
+
+
 def main():
     # See all possible arguments in src/transformers/training_args.py
     # or by passing the --help flag to this script.
     # We now keep distinct sets of args, for a cleaner separation of concerns.
 
-    parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))
+    parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments, UploadArguments))
     if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
         # If we pass only one argument to the script and it's the path to a json file,
         # let's parse it to get our arguments.
-        model_args, data_args, training_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
+        model_args, data_args, training_args, upload_args = parser.parse_json_file(
+            json_file=os.path.abspath(sys.argv[1]))
     else:
-        model_args, data_args, training_args = parser.parse_args_into_dataclasses()
+        model_args, data_args, training_args, upload_args = parser.parse_args_into_dataclasses()
+
+    if training_args.report_to[0] == "wandb":
+        wandb_project = upload_args.wandb_project
+        wandb_entity = upload_args.wandb_entity
+        wandb_run_name = upload_args.wandb_run_name
+        if wandb_project is not None:
+            os.environ["WANDB_PROJECT"] = wandb_project
+        else:
+            raise ValueError("wandb_project must be specified if report_to is wandb")
+        if wandb_run_name is not None:
+            os.environ["WANDB_NAME"] = wandb_run_name
+        else:
+            os.environ["WANDB_NAME"] = (
+                f"{model_args.model_name_or_path.split('/')[-1]}"
+                f"-{data_args.dataset_name.split('/')[-1]}"
+            )
+        if wandb_entity is not None:
+            os.environ["WANDB_ENTITY"] = wandb_entity
+        os.environ["WANDB_ENTITY"] = upload_args.wandb_entity
+        run_id = generate_id()
+        os.environ["WANDB_RUN_ID"] = run_id
+        wandb_run_url = f"https://wandb.ai/{upload_args.wandb_entity}/{upload_args.wandb_project}/runs/{run_id}"
 
     # Sending telemetry. Tracking the example usage helps us better allocate resources to maintain them. The
     # information sent is the one passed as arguments along with your Python/PyTorch versions.
@@ -421,10 +478,12 @@ def main():
         n_params = sum({p.data_ptr(): p.numel() for p in model.parameters()}.values())
         logger.info(f"Training new model from scratch - Total size={n_params / 2 ** 20:.2f}M params")
 
+    training_layers = [int(layer) for layer in model_args.training_layers.split(",")]
     # freeze model
     model.requires_grad_(False)
     # unfreeze the layer to be trained
-    model.gpt_neox.layers[model_args.training_layer].requires_grad_(True)
+    for layer in training_layers:
+        model.gpt_neox.layers[layer].requires_grad_(True)
 
     # We resize the embeddings only when necessary to avoid index errors. If you are creating a model from scratch
     # on a small vocab and want a smaller embedding size, remove this test.
@@ -623,7 +682,17 @@ def main():
             kwargs["dataset"] = data_args.dataset_name
 
     if training_args.push_to_hub:
-        trainer.push_to_hub(**kwargs)
+        training_summary = TrainingSummary.from_trainer(trainer, **kwargs)
+        if training_args.local_rank == 0:
+            training_summary.dataset_metadata[0].pop("config", None)  # Will get error if default which is null
+            summary_card = training_summary.to_model_card()
+            summary_card = f"{summary_card}\n\n## Wandb Report\n {wandb_run_url}"
+            model_card = ModelCard(summary_card)
+            repo = Repository(local_dir=training_args.output_dir)
+            repo.git_pull()
+            with open(f"{training_args.output_dir}/README.md", "w") as f:
+                f.write(str(model_card))
+            repo.push_to_hub()
     else:
         trainer.create_model_card(**kwargs)
 
