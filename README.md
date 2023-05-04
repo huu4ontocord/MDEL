@@ -39,6 +39,15 @@ To create an expert dataset using the Pile data, follow these steps:
 - Gutenberg (PG-19)†
 - OpenSubtitles†
 - Wikipedia (en)†
+- DM Mathematics†
+- Ubuntu IRC
+- BookCorpus2
+- EuroParl†
+- HackerNews
+- YoutubeSubtitles
+- PhilPapers
+- NIH ExPorter
+- Enron Emails†
 
 # Training Expert Models
 
