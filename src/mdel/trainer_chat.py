@@ -290,7 +290,7 @@ def main():
     else:
         model_args, data_args, training_args, upload_args = parser.parse_args_into_dataclasses()
 
-    if training_args.local_rank == 0 and len(training_args.report_to) >=1:
+    if training_args.local_rank == 0 and len(training_args.report_to) >= 1:
         for report_to in training_args.report_to:
             if report_to == "wandb":
                 wandb_track = True
@@ -531,8 +531,9 @@ def main():
 
     def tokenize_function(examples):
         with CaptureLogger(tok_logger) as cl:
-                for data in examples[text_column_name]:
-                    data= f"""Below is an instruction that describes a task. Write a response that appropriately completes the request. \n\n{data} {tokenizer.eos_token}"""
+            for data in examples[text_column_name]:
+                data = "Below is an instruction that describes a task. Write a response that" \
+                    f"appropriately completes the request. \n\n{data} {tokenizer.eos_token}"
             # trancute the prompt to block_size
         output = tokenizer(examples[text_column_name])
         # clm input could be much much longer than block_size
