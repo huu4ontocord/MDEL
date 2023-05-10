@@ -32,6 +32,7 @@ import datasets
 import evaluate
 import torch
 import transformers
+import wandb
 from datasets import load_dataset
 from huggingface_hub import ModelCard, Repository
 from transformers import (CONFIG_MAPPING, MODEL_FOR_CAUSAL_LM_MAPPING,
@@ -45,7 +46,6 @@ from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import send_example_telemetry
 from transformers.utils.versions import require_version
 from wandb.sdk.lib.runid import generate_id
-import wandb
 
 # Will error if the minimal version of Transformers is not installed. Remove at your own risks.
 # check_min_version("4.28.0.dev0")
@@ -290,7 +290,7 @@ def main():
     else:
         model_args, data_args, training_args, upload_args = parser.parse_args_into_dataclasses()
 
-    if training_args.local_rank == 0 and len(training_args.report_to) >=1:
+    if len(training_args.report_to) >= 1 and (not training_args.deepspeed or training_args.local_rank == 0):
         for report_to in training_args.report_to:
             if report_to == "wandb":
                 wandb_track = True
