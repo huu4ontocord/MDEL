@@ -17,7 +17,8 @@ Fine-tuning the library models for causal language modeling (GPT, GPT-2, CTRL, .
 Here is the full list of checkpoints on the hub that can be fine-tuned by this script:
 https://huggingface.co/models?filter=text-generation
 """
-# You can also adapt this script on your own causal language modeling task. Pointers for this are left as comments.
+# You can also adapt this script on your own causal language modeling
+# task. Pointers for this are left as comments.
 
 import logging
 import math
@@ -31,21 +32,28 @@ import datasets
 import evaluate
 import torch
 import transformers
+import wandb
 from datasets import load_dataset
+from huggingface_hub import ModelCard, Repository
 from transformers import (CONFIG_MAPPING, MODEL_FOR_CAUSAL_LM_MAPPING,
                           AutoConfig, AutoModelForCausalLM, AutoTokenizer,
                           HfArgumentParser, Trainer, TrainingArguments,
                           default_data_collator, is_torch_tpu_available,
                           set_seed)
+from transformers.modelcard import TrainingSummary
 from transformers.testing_utils import CaptureLogger
 from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import send_example_telemetry
 from transformers.utils.versions import require_version
+from wandb.sdk.lib.runid import generate_id
 
 # Will error if the minimal version of Transformers is not installed. Remove at your own risks.
 # check_min_version("4.28.0.dev0")
 
-require_version("datasets>=1.8.0", "To fix: pip install -r examples/pytorch/language-modeling/requirements.txt")
+require_version(
+    "datasets>=1.8.0",
+    "To fix: pip install -r examples/pytorch/language-modeling/requirements.txt",
+)
 
 logger = logging.getLogger(__name__)
 
@@ -69,11 +77,7 @@ class ModelArguments:
     )
     training_layers: str = field(
         default="9,10,11,12,13",
-        metadata={
-            "help": (
-                "layers to train, comma separated."
-            )
-        },
+        metadata={"help": ("layers to train, comma separated.")},
     )
     model_type: Optional[str] = field(
         default=None,
@@ -89,10 +93,12 @@ class ModelArguments:
         },
     )
     config_name: Optional[str] = field(
-        default=None, metadata={"help": "Pretrained config name or path if not the same as model_name"}
+        default=None,
+        metadata={"help": "Pretrained config name or path if not the same as model_name"},
     )
     tokenizer_name: Optional[str] = field(
-        default=None, metadata={"help": "Pretrained tokenizer name or path if not the same as model_name"}
+        default=None,
+        metadata={"help": "Pretrained tokenizer name or path if not the same as model_name"},
     )
     cache_dir: Optional[str] = field(
         default=None,
@@ -151,27 +157,17 @@ class DataTrainingArguments:
     """
 
     dataset_name: Optional[str] = field(
-        default=None, metadata={"help": "The name of the dataset to use (via the datasets library)."}
+        default=None,
+        metadata={"help": "The name of the dataset to use (via the datasets library)."},
     )
     dataset_config_name: Optional[str] = field(
-        default=None, metadata={"help": "The configuration name of the dataset to use (via the datasets library)."}
+        default=None,
+        metadata={"help": "The configuration name of the dataset to use (via the datasets library)."},
     )
     train_file: Optional[str] = field(default=None, metadata={"help": "The input training data file (a text file)."})
     validation_file: Optional[str] = field(
         default=None,
         metadata={"help": "An optional input evaluation data file to evaluate the perplexity on (a text file)."},
-    )
-    separator: Optional[str] = field(
-        default="Assistant:",
-        metadata={"help": "String to separate prompt from answer"},
-    )
-    prompt_column: Optional[str] = field(
-        default="prompt",
-        metadata={"help": "column where prompt is"},
-    )
-    answer_column: Optional[str] = field(
-        default="response",
-        metadata={"help": "column where answer is"},
     )
     max_train_samples: Optional[int] = field(
         default=None,
@@ -203,20 +199,27 @@ class DataTrainingArguments:
         },
     )
     overwrite_cache: bool = field(
-        default=False, metadata={"help": "Overwrite the cached training and evaluation sets"}
+        default=False,
+        metadata={"help": "Overwrite the cached training and evaluation sets"},
     )
     validation_split_percentage: Optional[int] = field(
         default=5,
-        metadata={
-            "help": "The percentage of the train set used as validation set in case there's no validation split"
-        },
+        metadata={"help": "The percentage of the train set used as validation set in case there's no validation split"},
     )
     preprocessing_num_workers: Optional[int] = field(
         default=None,
         metadata={"help": "The number of processes to use for the preprocessing."},
     )
     keep_linebreaks: bool = field(
-        default=True, metadata={"help": "Whether to keep line breaks when using TXT files or not."}
+        default=True,
+        metadata={"help": "Whether to keep line breaks when using TXT files or not."},
+    )
+    validation_splits: Optional[str] = field(
+        default=None,
+        metadata={
+            "help": "Comma-separated list of splits to be used as validation sets "
+                    "(e.g. 'validation_pile,validation_domain'"
+        },
     )
 
     def __post_init__(self):
@@ -228,10 +231,49 @@ class DataTrainingArguments:
         else:
             if self.train_file is not None:
                 extension = self.train_file.split(".")[-1]
-                assert extension in ["csv", "json", "txt"], "`train_file` should be a csv, a json or a txt file."
+                assert extension in [
+                    "csv",
+                    "json",
+                    "txt",
+                ], "`train_file` should be a csv, a json or a txt file."
             if self.validation_file is not None:
                 extension = self.validation_file.split(".")[-1]
-                assert extension in ["csv", "json", "txt"], "`validation_file` should be a csv, a json or a txt file."
+                assert extension in [
+                    "csv",
+                    "json",
+                    "txt",
+                ], "`validation_file` should be a csv, a json or a txt file."
+
+
+@dataclass
+class UploadArguments:
+
+    wandb_project: Optional[str] = field(
+        default=os.environ.get("WANDB_PROJECT"),
+        metadata={
+            "help": (
+                "The wandb project name to upload the model card to."
+            )
+        },
+    )
+
+    wandb_run_name: Optional[str] = field(
+        default=os.environ.get("WANDB_NAME"),
+        metadata={
+            "help": (
+                "The wandb run name to upload the model card to."
+            )
+        },
+    )
+
+    wandb_entity: Optional[str] = field(
+        default=os.environ.get("WANDB_ENTITY"),
+        metadata={
+            "help": (
+                "The wandb entity name to upload the model card to."
+            )
+        },
+    )
 
 
 def main():
@@ -239,16 +281,45 @@ def main():
     # or by passing the --help flag to this script.
     # We now keep distinct sets of args, for a cleaner separation of concerns.
 
-    parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))
+    parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments, UploadArguments))
     if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
         # If we pass only one argument to the script and it's the path to a json file,
         # let's parse it to get our arguments.
-        model_args, data_args, training_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
+        model_args, data_args, training_args, upload_args = parser.parse_json_file(
+            json_file=os.path.abspath(sys.argv[1]))
     else:
-        model_args, data_args, training_args = parser.parse_args_into_dataclasses()
+        model_args, data_args, training_args, upload_args = parser.parse_args_into_dataclasses()
+
+    if training_args.local_rank == 0 and len(training_args.report_to) >= 1:
+        for report_to in training_args.report_to:
+            if report_to == "wandb":
+                wandb_track = True
+                wandb_api = wandb.Api()
+                wandb_project = upload_args.wandb_project
+                wandb_entity = upload_args.wandb_entity
+                wandb_run_name = upload_args.wandb_run_name
+                if wandb_project is not None:
+                    os.environ["WANDB_PROJECT"] = wandb_project
+                else:
+                    raise ValueError("wandb_project must be specified if report_to is wandb")
+                if wandb_run_name is not None:
+                    os.environ["WANDB_NAME"] = wandb_run_name
+                else:
+                    os.environ["WANDB_NAME"] = (
+                        f"{model_args.model_name_or_path.split('/')[-1]}"
+                        f"-{data_args.dataset_name.split('/')[-1]}"
+                    )
+                if wandb_entity is not None:
+                    os.environ["WANDB_ENTITY"] = wandb_entity
+                else:
+                    wandb_entity = wandb_api.default_entity
+                run_id = generate_id()
+                os.environ["WANDB_RUN_ID"] = run_id
+                wandb_run_url = f"https://wandb.ai/{upload_args.wandb_entity}/{upload_args.wandb_project}/runs/{run_id}"
 
     # Sending telemetry. Tracking the example usage helps us better allocate resources to maintain them. The
-    # information sent is the one passed as arguments along with your Python/PyTorch versions.
+    # information sent is the one passed as arguments along with your
+    # Python/PyTorch versions.
     send_example_telemetry("run_clm", model_args, data_args)
 
     # Setup logging
@@ -259,7 +330,8 @@ def main():
     )
 
     if training_args.should_log:
-        # The default of training_args.log_level is passive, so we set log level at info here to have that default.
+        # The default of training_args.log_level is passive, so we set log
+        # level at info here to have that default.
         transformers.utils.logging.set_verbosity_info()
 
     log_level = training_args.get_process_log_level()
@@ -293,16 +365,8 @@ def main():
 
     # Set seed before initializing model.
     set_seed(training_args.seed)
-
-    # Get the datasets: you can either provide your own CSV/JSON/TXT training and evaluation files (see below)
-    # or just provide the name of one of the public datasets available on the hub at https://huggingface.co/datasets/
-    # (the dataset will be downloaded automatically from the datasets Hub).
-    #
-    # For CSV/JSON files, this script will use the column called 'text' or the first column if no column called
-    # 'text' is found. You can easily tweak this behavior (see below).
-    #
-    # In distributed training, the load_dataset function guarantee that only one local process can concurrently
-    # download the dataset.
+    if data_args.validation_splits is not None:
+        data_args.validation_splits = data_args.validation_splits.split(",")
     if data_args.dataset_name is not None:
         # Downloading and loading a dataset from the hub.
         raw_datasets = load_dataset(
@@ -312,7 +376,10 @@ def main():
             use_auth_token=True if model_args.use_auth_token else None,
             streaming=data_args.streaming,
         )
-        if "validation" not in raw_datasets.keys():
+        if "validation" not in raw_datasets.keys() and (
+            data_args.validation_splits is None or all(split not in raw_datasets.keys()
+                                                       for split in data_args.validation_splits)
+        ):
             raw_datasets["validation"] = load_dataset(
                 data_args.dataset_name,
                 data_args.dataset_config_name,
@@ -351,8 +418,12 @@ def main():
             use_auth_token=True if model_args.use_auth_token else None,
             **dataset_args,
         )
-        # If no validation data is there, validation_split_percentage will be used to divide the dataset.
-        if "validation" not in raw_datasets.keys():
+        # If no validation data is there, validation_split_percentage will be
+        # used to divide the dataset.
+        if "validation" not in raw_datasets.keys() and (
+            data_args.validation_splits is None or all(split not in raw_datasets.keys()
+                                                       for split in data_args.validation_splits)
+        ):
             raw_datasets["validation"] = load_dataset(
                 extension,
                 data_files=data_files,
@@ -411,9 +482,6 @@ def main():
             "You are instantiating a new tokenizer from scratch. This is not supported by this script."
             "You can do it from another script, save it, and load it from here, using --tokenizer_name."
         )
-    
-    #we add pad token not present in pythia models
-    tokenizer.pad_token_id = 0
 
     if model_args.model_name_or_path:
         torch_dtype = (
@@ -457,39 +525,24 @@ def main():
         column_names = list(raw_datasets["validation"].features)
     text_column_name = "text" if "text" in column_names else column_names[0]
 
-    # since this will be pickled to avoid _LazyModule error in Hasher force logger loading before tokenize_function
+    # since this will be pickled to avoid _LazyModule error in Hasher force
+    # logger loading before tokenize_function
     tok_logger = transformers.utils.logging.get_logger("transformers.tokenization_utils_base")
-    def find_place(a, b):
-        return [(i, i+len(b)) for i in range(len(a)) if a[i:i+len(b)] == b]#[0][1]
-    def generate_prompt(data_point):
-        return f"""The following is a friendly conversation between a human and an AI. The AI is talkative and provides lots of specific details from its context. If the AI does not know the answer to a question, it truthfully says it does not know.
-### Current conversation:
-{data_point["prompt"]}
-{data_point["response"]}"""
 
     def tokenize_function(examples):
         with CaptureLogger(tok_logger) as cl:
-            processed_examples = []
-            for prompt, response in zip(examples[data_args.prompt_column], examples[data_args.answer_column]):
-                processed_examples.append(f"{prompt} {response}")
-            tokenized_examples = tokenizer(processed_examples, padding="max_length", truncation=True, max_length=data_args.block_size)
-            labels = []
-            for input_ids in tokenized_examples["input_ids"]:
-                replace_index =  find_place(input_ids, data_args.separator)
-                if replace_index != []:
-                    replace_index = replace_index[0][1]
-                    labels.append([t if i >=replace_index else -100 for i, t in enumerate(input_ids)])
-                else:
-                    labels.append(input_ids)
-            tokenized_examples["labels"] = labels
-            
+            for data in examples[text_column_name]:
+                data = "Below is an instruction that describes a task. Write a response that" \
+                    f"appropriately completes the request. \n\n{data} {tokenizer.eos_token}"
+            # trancute the prompt to block_size
+        output = tokenizer(examples[text_column_name])
         # clm input could be much much longer than block_size
         if "Token indices sequence length is longer than the" in cl.out:
             tok_logger.warning(
                 "^^^^^^^^^^^^^^^^ Please ignore the warning above - this long input will be chunked into smaller bits"
                 " before being passed to the model."
             )
-        return tokenized_examples
+        return output
 
     with training_args.main_process_first(desc="dataset map tokenization"):
         if not data_args.streaming:
@@ -525,7 +578,8 @@ def main():
             )
         block_size = min(data_args.block_size, tokenizer.model_max_length)
 
-    # Main data processing function that will concatenate all texts from our dataset and generate chunks of block_size.
+    # Main data processing function that will concatenate all texts from our
+    # dataset and generate chunks of block_size.
     def group_texts(examples):
         # Concatenate all texts.
         concatenated_examples = {k: list(chain(*examples[k])) for k in examples.keys()}
@@ -550,20 +604,19 @@ def main():
     # https://huggingface.co/docs/datasets/package_reference/main_classes.html#datasets.Dataset.map
 
     with training_args.main_process_first(desc="grouping texts together"):
-        # if not data_args.streaming:
-        #     lm_datasets = tokenized_datasets.map(
-        #         group_texts,
-        #         batched=True,
-        #         num_proc=data_args.preprocessing_num_workers,
-        #         load_from_cache_file=not data_args.overwrite_cache,
-        #         desc=f"Grouping texts in chunks of {block_size}",
-        #     )
-        # else:
-        #     lm_datasets = tokenized_datasets.map(
-        #         group_texts,
-        #         batched=True,
-        #     )
-        lm_datasets = tokenized_datasets
+        if not data_args.streaming:
+            lm_datasets = tokenized_datasets.map(
+                group_texts,
+                batched=True,
+                num_proc=data_args.preprocessing_num_workers,
+                load_from_cache_file=not data_args.overwrite_cache,
+                desc=f"Grouping texts in chunks of {block_size}",
+            )
+        else:
+            lm_datasets = tokenized_datasets.map(
+                group_texts,
+                batched=True,
+            )
 
     if training_args.do_train:
         if "train" not in tokenized_datasets:
@@ -574,12 +627,14 @@ def main():
             train_dataset = train_dataset.select(range(max_train_samples))
 
     if training_args.do_eval:
-        if "validation" not in tokenized_datasets:
-            raise ValueError("--do_eval requires a validation dataset")
-        eval_dataset = lm_datasets["validation"]
+        if data_args.validation_splits is not None:
+            eval_datasets = {split: lm_datasets[split] for split in data_args.validation_splits}
+        else:
+            eval_datasets = {"validation": lm_datasets["validation"]}
         if data_args.max_eval_samples is not None:
-            max_eval_samples = min(len(eval_dataset), data_args.max_eval_samples)
-            eval_dataset = eval_dataset.select(range(max_eval_samples))
+            for key, eval_dataset in eval_datasets.items():
+                max_eval_samples = min(len(eval_dataset), data_args.max_eval_samples)
+                eval_datasets[key] = eval_dataset.select(range(max_eval_samples))
 
         def preprocess_logits_for_metrics(logits, labels):
             if isinstance(logits, tuple):
@@ -603,9 +658,10 @@ def main():
         model=model,
         args=training_args,
         train_dataset=train_dataset if training_args.do_train else None,
-        eval_dataset=eval_dataset if training_args.do_eval else None,
+        eval_dataset=eval_datasets if training_args.do_eval else None,
         tokenizer=tokenizer,
-        # Data collator will default to DataCollatorWithPadding, so we change it.
+        # Data collator will default to DataCollatorWithPadding, so we change
+        # it.
         data_collator=default_data_collator,
         compute_metrics=compute_metrics if training_args.do_eval and not is_torch_tpu_available() else None,
         preprocess_logits_for_metrics=preprocess_logits_for_metrics
@@ -637,8 +693,9 @@ def main():
     # Evaluation
     if training_args.do_eval:
         logger.info("*** Evaluate ***")
+        eval_dataset = datasets.concatenate_datasets([eval_dataset for eval_dataset in eval_datasets.values()])
 
-        metrics = trainer.evaluate()
+        metrics = trainer.evaluate(eval_dataset=eval_dataset)
 
         max_eval_samples = data_args.max_eval_samples if data_args.max_eval_samples is not None else len(eval_dataset)
         metrics["eval_samples"] = min(max_eval_samples, len(eval_dataset))
@@ -651,7 +708,10 @@ def main():
         trainer.log_metrics("eval", metrics)
         trainer.save_metrics("eval", metrics)
 
-    kwargs = {"finetuned_from": model_args.model_name_or_path, "tasks": "text-generation"}
+    kwargs = {
+        "finetuned_from": model_args.model_name_or_path,
+        "tasks": "text-generation",
+    }
     if data_args.dataset_name is not None:
         kwargs["dataset_tags"] = data_args.dataset_name
         if data_args.dataset_config_name is not None:
@@ -661,7 +721,18 @@ def main():
             kwargs["dataset"] = data_args.dataset_name
 
     if training_args.push_to_hub:
-        trainer.push_to_hub(**kwargs)
+        training_summary = TrainingSummary.from_trainer(trainer, **kwargs)
+        if training_args.local_rank == 0:
+            training_summary.dataset_metadata[0].pop("config", None)  # Will get error if default which is null
+            summary_card = training_summary.to_model_card()
+            if wandb_track:
+                summary_card = f"{summary_card}\n\n## Wandb Report\n {wandb_run_url}"
+            model_card = ModelCard(summary_card)
+            repo = Repository(local_dir=training_args.output_dir)
+            repo.git_pull()
+            with open(f"{training_args.output_dir}/README.md", "w") as f:
+                f.write(str(model_card))
+            repo.push_to_hub()
     else:
         trainer.create_model_card(**kwargs)
 
