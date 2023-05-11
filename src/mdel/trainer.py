@@ -290,9 +290,9 @@ def main():
     else:
         model_args, data_args, training_args, upload_args = parser.parse_args_into_dataclasses()
 
-    if len(training_args.report_to) >= 1 and (not training_args.deepspeed or training_args.local_rank == 0):
+    if len(training_args.report_to) >= 1 and training_args.local_rank == 0:
         for report_to in training_args.report_to:
-            if report_to == "wandb":
+            if report_to == "wandb" and not training_args.deepspeed:
                 wandb_track = True
                 wandb_api = wandb.Api()
                 wandb_project = upload_args.wandb_project
