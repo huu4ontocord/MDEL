@@ -37,14 +37,56 @@ from megatron.tokenizer import build_tokenizer
 from megatron.data import indexed_dataset
 from threading import Semaphore
 
+import re
 
 class Encoder(object):
     def __init__(self, args):
         self.args = args
+        self.dataset_map = {
+            "laion_5b" : (100000, 100, "/p/fastdata/mmlaion/laion5b_embeddings/L-14/laion1b-nolang-vit-l-14-embeddings/img_emb"),
+        }
 
     def initializer(self):
         # Use Encoder class as a container for global data
         Encoder.tokenizer = build_tokenizer(self.args)
+
+    def encode_text(self, text, add_sos=False, add_eos=False, sos_token=None, eos_token=None):
+        if hasattr(Encoder.tokenizer, "prepare_for_tokenization"):
+          text, _ = Encoder.tokenizer.prepare_for_tokenization(text, **kwargs)
+        matches = re.finditer(r'<<(\d+),\s*(\d+),\s*([\w_]+),\s*([\w_]+)>>', text)
+        token_parts = []
+        if add_sos:
+          token_parts.append(sos_token)
+        last_end = 0
+        for match in matches:
+            shard_id, offset, dataset_name, modality = int(match.group(1)), int(match.group(2)), match.group(3), match.group(4)
+            shard_size, cumulative_data_set_size, _ = self.dataset_map[dataset_name]
+            index = -1 * (cumulative_data_set_size + (shard_id * shard_size + offset))
+
+            # Tokenize the text between the last tag and the current tag
+            tokenized_text = Encoder.tokenizer.tokenize(text[last_end : match.start()])
+            if add_sos:
+              tokenized_text = tokenized_text[1:]
+            if add_eos:
+              tokenized_text = tokenized_text[:-1]
+            token_parts.extend(tokenized_text)
+
+            # Add the special token
+            token_parts.append(index)
+
+            last_end = match.end()
+
+        # Tokenize the remaining text after the last tag
+        tokenized_text = Encoder.tokenizer.tokenize(text[last_end:])
+        if add_sos:
+          tokenized_text = tokenized_text[1:]
+        if add_eos:
+          tokenized_text = tokenized_text[:-1]
+        token_parts.extend(tokenized_text)
+        if add_eos:
+          token_parts.append(eos_token)
+        return token_parts
+        # return Encoder.tokenizer.prepare_for_model(token_parts)["input_ids"]
 
     def encode(self, text):
         if self.args.ftfy:
@@ -52,14 +94,13 @@ class Encoder(object):
         ids = {}
         for key in self.args.jsonl_keys:
             doc_ids = []
-            text_ids = Encoder.tokenizer.tokenize(text)
+            text_ids = self.encode_text(text)
             if len(text_ids) > 0:
                 doc_ids.append(text_ids)
             if self.args.append_eod:
                 doc_ids[-1].append(Encoder.tokenizer.eod)
             ids[key] = doc_ids
         return ids, len(text)
-
 
 def get_args():
     parser = argparse.ArgumentParser()

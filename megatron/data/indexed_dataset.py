@@ -26,6 +26,7 @@ from megatron import print_rank_0
 
 
 def __best_fitting_dtype(vocab_size=None):
+    return np.int32 #FIX
     if vocab_size is not None and vocab_size < 65500:
         return np.uint16
     else:
