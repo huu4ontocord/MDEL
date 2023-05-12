@@ -32,6 +32,7 @@ import datasets
 import evaluate
 import torch
 import transformers
+import wandb
 from datasets import load_dataset
 from huggingface_hub import ModelCard, Repository
 from transformers import (CONFIG_MAPPING, MODEL_FOR_CAUSAL_LM_MAPPING,
@@ -287,27 +288,32 @@ def main():
     else:
         model_args, data_args, training_args, upload_args = parser.parse_args_into_dataclasses()
 
-    if training_args.report_to[0] == "wandb" and (not training_args.deepspeed or training_args.local_rank == 0):
-        wandb_project = upload_args.wandb_project
-        wandb_entity = upload_args.wandb_entity
-        wandb_run_name = upload_args.wandb_run_name
-        if wandb_project is not None:
-            os.environ["WANDB_PROJECT"] = wandb_project
-        else:
-            raise ValueError("wandb_project must be specified if report_to is wandb")
-        if wandb_run_name is not None:
-            os.environ["WANDB_NAME"] = wandb_run_name
-        else:
-            os.environ["WANDB_NAME"] = (
-                f"{model_args.model_name_or_path.split('/')[-1]}"
-                f"-{data_args.dataset_name.split('/')[-1]}"
-            )
-        if wandb_entity is not None:
-            os.environ["WANDB_ENTITY"] = wandb_entity
-        os.environ["WANDB_ENTITY"] = upload_args.wandb_entity
-        run_id = generate_id()
-        os.environ["WANDB_RUN_ID"] = run_id
-        wandb_run_url = f"https://wandb.ai/{upload_args.wandb_entity}/{upload_args.wandb_project}/runs/{run_id}"
+    if len(training_args.report_to) >= 1 and training_args.local_rank == 0:
+        for report_to in training_args.report_to:
+            if report_to == "wandb" and not training_args.deepspeed:
+                wandb_track = True
+                wandb_api = wandb.Api()
+                wandb_project = upload_args.wandb_project
+                wandb_entity = upload_args.wandb_entity
+                wandb_run_name = upload_args.wandb_run_name
+                if wandb_project is not None:
+                    os.environ["WANDB_PROJECT"] = wandb_project
+                else:
+                    raise ValueError("wandb_project must be specified if report_to is wandb")
+                if wandb_run_name is not None:
+                    os.environ["WANDB_NAME"] = wandb_run_name
+                else:
+                    os.environ["WANDB_NAME"] = (
+                        f"{model_args.model_name_or_path.split('/')[-1]}"
+                        f"-{data_args.dataset_name.split('/')[-1]}"
+                    )
+                if wandb_entity is not None:
+                    os.environ["WANDB_ENTITY"] = wandb_entity
+                else:
+                    wandb_entity = wandb_api.default_entity
+                run_id = generate_id()
+                os.environ["WANDB_RUN_ID"] = run_id
+                wandb_run_url = f"https://wandb.ai/{upload_args.wandb_entity}/{upload_args.wandb_project}/runs/{run_id}"
 
     # Sending telemetry. Tracking the example usage helps us better allocate resources to maintain them. The
     # information sent is the one passed as arguments along with your
@@ -713,7 +719,8 @@ def main():
         if training_args.local_rank == 0:
             training_summary.dataset_metadata[0].pop("config", None)  # Will get error if default which is null
             summary_card = training_summary.to_model_card()
-            summary_card = f"{summary_card}\n\n## Wandb Report\n {wandb_run_url}"
+            if wandb_track:
+                summary_card = f"{summary_card}\n\n## Wandb Report\n {wandb_run_url}"
             model_card = ModelCard(summary_card)
             repo = Repository(local_dir=training_args.output_dir)
             repo.git_pull()

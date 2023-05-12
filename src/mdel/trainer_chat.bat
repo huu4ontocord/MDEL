@@ -20,6 +20,6 @@ accelerate launch trainer_chat.py ^
         --eval_steps 200 ^
         --overwrite_output_dir ^
         --logging_steps 20 ^
-        --max_steps 1000 
+        --max_steps 1000
 
 pause
