@@ -43,8 +43,7 @@ def merge_n_models(model_names):
 def upload_expert(merged_model, args):
   sources = "\n".join(map(lambda mn: f"- [{mn}](https://huggingface.co/{mn})", args.experts))
 
-  model_card_yaml = f"""
-  ---
+  model_card_yaml = f"""---
   tags:
   - MDEL
   ---
