@@ -4,7 +4,7 @@ from datasets import load_dataset
 from transformers import DataCollatorForLanguageModeling
 import math
 import argparse
-
+import json
 
 def load_model(args):
     tokenizer = AutoTokenizer.from_pretrained(
@@ -108,9 +108,20 @@ if __name__ == "__main__":
     eval_results = trainer.evaluate()
     perplexity = math.exp(eval_results['eval_loss'])
     message = f"Perplexity for {args.model} on {args.dataset}[{args.split}]: {perplexity}"
-
     print(message)
 
-    with open(f"perplexity-{args.model}-{args.dataset}-{args.split}.txt", "w") as f:
-        f.write(message)
+    # write to jsonl
+    data = {
+        "date": eval_results['eval_start_timestamp'],
+        "runtime": eval_results['eval_runtime'],
+        "model": args.model,
+        "dataset": args.dataset,
+        "split": args.split,
+        "max_length": args.max_length,
+        "dataset_key": args.dataset_key,
+        "perplexity": perplexity,
+    }
+
+    with open(f"perplexity-results.jsonl", "a") as f:
+        f.write(json.dumps(data) + "\n")
 
