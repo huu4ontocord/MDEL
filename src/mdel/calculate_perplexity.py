@@ -19,9 +19,8 @@ def load_model(args):
 
 def prep_dataset(args, tokenizer):
     ds = load_dataset(args.dataset, split=args.split)
-    ds = ds.train_test_split(test_size=0.2)
     ds = ds.flatten()
-    print("Loaded Dataset", ds["train"][0])
+    print("Loaded Dataset", ds[0])
 
     def preprocess_function(examples):
         return tokenizer(
@@ -34,7 +33,7 @@ def prep_dataset(args, tokenizer):
         preprocess_function,
         batched=True,
         num_proc=4,
-        remove_columns=ds["train"].column_names,
+        remove_columns=ds.column_names,
     )
 
     return tokenized_ds
@@ -102,7 +101,7 @@ if __name__ == "__main__":
     trainer = Trainer(
         model=model,
         args=training_args,
-        eval_dataset=dataset["test"],
+        eval_dataset=dataset,
         data_collator=data_collator,
     )
 
