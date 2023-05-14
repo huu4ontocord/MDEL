@@ -73,6 +73,7 @@ python src/mdel/merge_experts.py \
    -e mdel/expert_2 \
    -e mdel/expert_n
 ```
+
 # References
 
 Gao, L., Biderman, S., Black, S., Golding, L., Hoppe, T., Foster, C., ... &
