@@ -1,4 +1,4 @@
-dataset_name:  Multi-Domain-Expert-Layers/arxiv
+dataset_name: Multi-Domain-Expert-Layers/arxiv
 model_name_or_path: EleutherAI/pythia-1b-deduped
 output_dir: "ckpts/pythia-1b-deduped/uspto/layer_9,10,11,12,13"
 training_layers: "4,5"
