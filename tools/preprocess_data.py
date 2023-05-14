@@ -39,12 +39,14 @@ from threading import Semaphore
 
 import re
 
+DATASET_MAP = {
+            "laion_5b" : (100000, 100, "/p/fastdata/mmlaion/laion5b_embeddings/L-14/laion1b-nolang-vit-l-14-embeddings/img_emb/img_emb_000"),
+}
+
 class Encoder(object):
     def __init__(self, args):
         self.args = args
-        self.dataset_map = {
-            "laion_5b" : (100000, 100, "/p/fastdata/mmlaion/laion5b_embeddings/L-14/laion1b-nolang-vit-l-14-embeddings/img_emb"),
-        }
+        self.dataset_map = DATASET_MAP
 
     def initializer(self):
         # Use Encoder class as a container for global data
@@ -86,7 +88,6 @@ class Encoder(object):
         if add_eos:
           token_parts.append(eos_token)
         return token_parts
-        # return Encoder.tokenizer.prepare_for_model(token_parts)["input_ids"]
 
     def encode(self, text):
         if self.args.ftfy:

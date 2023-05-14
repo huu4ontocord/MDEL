@@ -21,7 +21,10 @@ from megatron.model.positional_embeddings import SinusoidalPositionalEmbedding
 from megatron.model.init_functions import get_init_methods
 
 from numpy.lib.format import open_memmap
-import torch.multiprocessing as mp
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
+
+from tools.preprocess_data import DATASET_MAP
 
 class Embedding(torch.nn.Module):
     """Language model embeddings.
@@ -166,9 +169,10 @@ class Embedding(torch.nn.Module):
 
 class EmbeddingPipe(Embedding):
     """Extends Embedding to forward attention_mask through the pipeline."""
-    def __init__(self, neox_args, hidden_size, vocab_size, max_sequence_length, embedding_dropout_prob, init_method, num_tokentypes=0, use_pos_emb=True):
-        super().__init__(neox_args, hidden_size, vocab_size, max_sequence_length, embedding_dropout_prob, init_method, num_tokentypes, use_pos_emb)
-        self.projection = torch.nn.Linear(768, hidden_size)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.projection = torch.nn.Linear(768, self.hidden_size)
+        self.dataset_map = DATASET_MAP
     
     @property
     def word_embeddings_weight(self):
@@ -176,36 +180,17 @@ class EmbeddingPipe(Embedding):
         return self.word_embeddings.weight
     
     def get_embedding(self, index, device):
-        dataset_map = {
-            "laion_5b" : (100000, 100, "/p/fastdata/mmlaion/laion5b_embeddings/L-14/laion1b-nolang-vit-l-14-embeddings/img_emb/img_emb_000"), #FIX
-        }
         positive_index = -1*index
-        for dataset_name, (shard_size, cummulative_data_set_size, path) in reversed(list(dataset_map.items())):
+        for dataset_name, (shard_size, cummulative_data_set_size, path) in reversed(list(self.dataset_map.items())):
             if positive_index>=cummulative_data_set_size:
                 shard_size, cummulative_data_set_size, path = shard_size, cummulative_data_set_size, path
                 break
         shard = (positive_index - cummulative_data_set_size)//shard_size
         offset = (positive_index - cummulative_data_set_size)%shard_size
         complete_path = path + str(shard)+".npy"
-        embeddings = open_memmap(complete_path, mode='r+')
-        return self.projection(torch.from_numpy(embeddings[offset]).to(device))
-        
-    def get_all_embeddings(self, negative_indices, device):
-        # Assuming you have a Torch tensor named 'values'
-        num_processes = mp.cpu_count()  # Get the number of available CPU cores
-
-        # Create a pool of processes
-        pool = mp.Pool(processes=num_processes)
-
-        # Apply load_embedding function in parallel using map()
-        embeddings = pool.map(self.get_embedding, negative_indices)
-
-        # Close the pool of processes
-        pool.close()
-
-        # Combine the embeddings into a 2D tensor using torch.cat()
-        combined_embeddings = torch.cat(embeddings, dim=0)
-        return combined_embeddings
+        embeddings = open_memmap(complete_path, mode='r')
+        embedding = embeddings[offset].copy()
+        return torch.from_numpy(embedding).to(device)
 
     def forward(self, args):
         assert (
@@ -218,18 +203,16 @@ class EmbeddingPipe(Embedding):
         embeddings = super().forward(torch.where(input_ids < 0, 0, input_ids), position_ids)
         device = embeddings.get_device()
         negative_indices = input_ids<0
-        # embeddings[negative_indices] = torch.func.vmap(self.get_embedding, in_dims=(0, None))(input_ids[negative_indices].reshape(-1, 1), device)
-        # embeddings[negative_indices] = get_all_embeddings(input_ids[negative_indices], device)
-
-        # Assuming you have a Torch tensor named 'values'
-        negative_ids = input_ids[negative_indices].clone().cpu()  # Create a clone of the tensor to store the embeddings
-
-        # Apply load_embedding function element-wise using apply_()
-        negative_ids.apply_(lambda value: self.get_embedding(value, device))
-
-        # Combine the embeddings into a 2D tensor using torch.cat()
-        embeddings[negative_indices] = torch.cat(negative_ids, dim=0)
-
+        negative_positions = torch.nonzero(negative_indices, as_tuple=True)
+        negative_ids = input_ids[negative_indices] 
+        neg_id_list = negative_ids.tolist()
+        num_workers = 10
+        with ThreadPoolExecutor(max_workers=num_workers) as executor:
+            loaded_embeddings = list(executor.map(partial(self.get_embedding, device=device), neg_id_list))
+        loaded_embeddings = self.projection(torch.stack(loaded_embeddings))
+        temp_loaded_embeddings = torch.zeros_like(embeddings)
+        temp_loaded_embeddings[negative_positions] = loaded_embeddings
+        embeddings = embeddings*(~negative_indices.unsqueeze(-1)) + temp_loaded_embeddings*negative_indices.unsqueeze(-1)
         return embeddings, attention_mask
 
 
