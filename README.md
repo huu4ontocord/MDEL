@@ -60,6 +60,19 @@ To create an expert dataset using the Pile data, follow these steps:
 5. Run the above script in background mode to start the training: `./train.sh &`
 6. The trained model should be uploaded to the MDEL HF
 
+# Merging Expert Models
+
+1. Clone this repo and follow the Environment Setup instructions
+2. Set up HF authentication: `export HUGGING_FACE_HUB_TOKEN=[FILL ME]`
+3. Run the merge script
+
+```bash
+python src/mdel/merge_experts.py \
+   --hf-repo your_hf_username/desired_name_of_merged_model \
+   -e mdel/expert_1 \
+   -e mdel/expert_2 \
+   -e mdel/expert_n
+```
 # References
 
 Gao, L., Biderman, S., Black, S., Golding, L., Hoppe, T., Foster, C., ... &
