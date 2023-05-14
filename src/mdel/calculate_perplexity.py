@@ -115,6 +115,7 @@ if __name__ == "__main__":
         "date": eval_results['eval_start_timestamp'],
         "runtime": eval_results['eval_runtime'],
         "model": args.model,
+        "tokenizer": args.tokenizer if args.tokenizer else args.model,
         "dataset": args.dataset,
         "split": args.split,
         "max_length": args.max_length,
