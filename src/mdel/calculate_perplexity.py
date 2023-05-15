@@ -125,5 +125,5 @@ if __name__ == "__main__":
         "perplexity": perplexity,
     }
 
-    with open(f"perplexity-results.jsonl", "a") as f:
+    with open("perplexity-results.jsonl", "a") as f:
         f.write(json.dumps(data) + "\n")
