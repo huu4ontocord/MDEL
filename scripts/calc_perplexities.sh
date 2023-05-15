@@ -11,6 +11,6 @@ do
   for DATASET in "Multi-Domain-Expert-Layers/arxiv" "Multi-Domain-Expert-Layers/freelaw" "Multi-Domain-Expert-Layers/github"
   do
 
-    echo $PYTHON_CMD ../src/mdel/calculate_perplexity.py --model $MODEL --dataset $DATASET --split validation_domain
+    $PYTHON_CMD ../src/mdel/calculate_perplexity.py --model $MODEL --dataset $DATASET --split validation_domain
   done 
 done
