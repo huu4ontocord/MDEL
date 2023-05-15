@@ -33,15 +33,12 @@ import evaluate
 import torch
 import transformers
 from datasets import load_dataset
-from huggingface_hub import ModelCard, Repository
 from transformers import (CONFIG_MAPPING, MODEL_FOR_CAUSAL_LM_MAPPING,
                           AutoConfig, AutoModelForCausalLM, AutoTokenizer,
                           HfArgumentParser, Trainer, TrainingArguments,
                           default_data_collator, is_torch_tpu_available,
                           set_seed)
-from transformers.modelcard import TrainingSummary
 from transformers.testing_utils import CaptureLogger
-from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import send_example_telemetry
 from transformers.utils.versions import require_version
 from wandb.sdk.lib.runid import generate_id
@@ -147,7 +144,6 @@ class ModelArguments:
     )
 
 
-
 @dataclass
 class DataTrainingArguments:
     """
@@ -245,7 +241,6 @@ class DataTrainingArguments:
 
 @dataclass
 class UploadArguments:
-
     wandb_project: Optional[str] = field(
         default=os.environ.get("WANDB_PROJECT"),
         metadata={
@@ -299,8 +294,10 @@ def main():
         if wandb_run_name is not None:
             os.environ["WANDB_NAME"] = wandb_run_name
         else:
+            model_name1 = model_args.model_1_name_or_path.split('/')[-1]
+            model_name2 = model_args.model_2_name_or_path.split('/')[-1]
             os.environ["WANDB_NAME"] = (
-                f"merge_{model_args.model_1_name_or_path.split('/')[-1]}_{model_args.model_2_name_or_path.split('/')[-1]}"
+                f"merge_{model_name1}_{model_name2}"
                 f"-{data_args.dataset_name.split('/')[-1]}"
             )
         if wandb_entity is not None:
@@ -308,7 +305,6 @@ def main():
         os.environ["WANDB_ENTITY"] = upload_args.wandb_entity
         run_id = generate_id()
         os.environ["WANDB_RUN_ID"] = run_id
-        wandb_run_url = f"https://wandb.ai/{upload_args.wandb_entity}/{upload_args.wandb_project}/runs/{run_id}"
 
     # Sending telemetry. Tracking the example usage helps us better allocate resources to maintain them. The
     # information sent is the one passed as arguments along with your
@@ -341,7 +337,6 @@ def main():
     )
     logger.info(f"Training/evaluation parameters {training_args}")
 
-
     # Set seed before initializing model.
     set_seed(training_args.seed)
     if data_args.validation_splits is not None:
@@ -356,8 +351,8 @@ def main():
             streaming=data_args.streaming,
         )
         if "validation" not in raw_datasets.keys() and (
-            data_args.validation_splits is None or all(split not in raw_datasets.keys()
-                                                       for split in data_args.validation_splits)
+                data_args.validation_splits is None or all(split not in raw_datasets.keys()
+                                                           for split in data_args.validation_splits)
         ):
             raw_datasets["validation"] = load_dataset(
                 data_args.dataset_name,
@@ -400,8 +395,8 @@ def main():
         # If no validation data is there, validation_split_percentage will be
         # used to divide the dataset.
         if "validation" not in raw_datasets.keys() and (
-            data_args.validation_splits is None or all(split not in raw_datasets.keys()
-                                                       for split in data_args.validation_splits)
+                data_args.validation_splits is None or all(split not in raw_datasets.keys()
+                                                           for split in data_args.validation_splits)
         ):
             raw_datasets["validation"] = load_dataset(
                 extension,
@@ -462,7 +457,6 @@ def main():
             "You can do it from another script, save it, and load it from here, using --tokenizer_name."
         )
 
-
     torch_dtype = (
         model_args.torch_dtype
         if model_args.torch_dtype in ["auto", None]
@@ -490,7 +484,7 @@ def main():
         low_cpu_mem_usage=model_args.low_cpu_mem_usage,
     )
 
-    #merge models
+    # merge models
     named_parameters_model = dict(model.named_parameters())
     named_parameters_model_2 = dict(model_2.named_parameters())
     with torch.no_grad():
@@ -668,7 +662,6 @@ def main():
             kwargs["dataset"] = f"{data_args.dataset_name} {data_args.dataset_config_name}"
         else:
             kwargs["dataset"] = data_args.dataset_name
-
 
 
 def _mp_fn(index):
