@@ -1,3 +1,5 @@
+#!/bin/bash
+
 if command -v python3 &>/dev/null; then
   PYTHON_CMD=python3
 else
@@ -12,5 +14,5 @@ do
   do
 
     $PYTHON_CMD ../src/mdel/calculate_perplexity.py --model $MODEL --dataset $DATASET --split validation_domain
-  done 
+  done
 done
