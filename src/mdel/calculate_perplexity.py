@@ -1,10 +1,12 @@
-from transformers import AutoModelForCausalLM, TrainingArguments, Trainer
-from transformers import AutoTokenizer
-from datasets import load_dataset
-from transformers import DataCollatorForLanguageModeling
-import math
 import argparse
 import json
+import math
+
+from datasets import load_dataset
+from transformers import (AutoModelForCausalLM, AutoTokenizer,
+                          DataCollatorForLanguageModeling, Trainer,
+                          TrainingArguments)
+
 
 def load_model(args):
     tokenizer = AutoTokenizer.from_pretrained(
@@ -125,4 +127,3 @@ if __name__ == "__main__":
 
     with open(f"perplexity-results.jsonl", "a") as f:
         f.write(json.dumps(data) + "\n")
-
