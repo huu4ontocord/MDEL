@@ -1,6 +1,7 @@
 import argparse
 import json
 import math
+import time
 
 from datasets import load_dataset
 from transformers import (AutoModelForCausalLM, AutoTokenizer,
@@ -114,7 +115,7 @@ if __name__ == "__main__":
 
     # write to jsonl
     data = {
-        "date": eval_results['eval_start_timestamp'],
+        "date": time.time(),
         "runtime": eval_results['eval_runtime'],
         "model": args.model,
         "tokenizer": args.tokenizer if args.tokenizer else args.model,
