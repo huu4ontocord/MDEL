@@ -13,7 +13,7 @@ def load_model(args):
     tokenizer = AutoTokenizer.from_pretrained(
         args.tokenizer if args.tokenizer else args.model
     )
-    model = AutoModelForCausalLM.from_pretrained(args.model)
+    model = AutoModelForCausalLM.from_pretrained(args.model).cuda()
 
     tokenizer.pad_token = tokenizer.eos_token
 
@@ -22,8 +22,8 @@ def load_model(args):
 
 def prep_dataset(args, tokenizer):
     ds = load_dataset(args.dataset, split=args.split)
-    ds = ds.flatten()
-    print("Loaded Dataset", ds[0])
+    ds = ds.flatten()[:args.num_samples]
+    print("Loaded Dataset with {} samples".format(len(ds)))
 
     def preprocess_function(examples):
         return tokenizer(
@@ -83,6 +83,14 @@ def parse_args():
         required=False,
         default='text',
         help="Key to use to access the dataset e.g. text or answers.text",
+    )
+
+    parser.add_argument(
+        "--num-samples",
+        type=str,
+        required=False,
+        default=1000,
+        help="Max number of samples to evaluate on",
     )
 
     return parser.parse_args()
