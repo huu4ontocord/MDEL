@@ -132,6 +132,7 @@ if __name__ == "__main__":
         "split": args.split,
         "max_length": args.max_length,
         "dataset_key": args.dataset_key,
+        "num_samples": args.num_samples,
         "perplexity": perplexity,
     }
 
