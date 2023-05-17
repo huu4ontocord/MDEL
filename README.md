@@ -74,6 +74,19 @@ python src/mdel/merge_experts.py \
    -e mdel/expert_n
 ```
 
+# Evaluating Perplexity of Models
+
+1. Clone this repo and follow the Environment Setup instructions
+2. Set up HF authentication: `export HUGGING_FACE_HUB_TOKEN=[FILL ME]`
+3. Run the perplexity script
+
+```bash
+python3 src/mdel/calculate_perplexity.py \
+   --model Multi-Domain-Expert-Layers/expert-arxiv \
+   --dataset Multi-Domain-Expert-Layers/arxiv \
+   --split validation_domain
+```
+
 # References
 
 Gao, L., Biderman, S., Black, S., Golding, L., Hoppe, T., Foster, C., ... &
