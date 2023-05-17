@@ -90,7 +90,7 @@ def parse_args():
         "--num-samples",
         type=str,
         required=False,
-        default=1000,
+        default=10000,
         help="Max number of samples to evaluate on",
     )
 
