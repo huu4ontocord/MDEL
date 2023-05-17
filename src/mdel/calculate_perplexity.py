@@ -22,7 +22,8 @@ def load_model(args):
 
 def prep_dataset(args, tokenizer):
     ds = load_dataset(args.dataset, split=args.split)
-    ds = ds.flatten()[:args.num_samples]
+    ds = ds.flatten()
+    ds = ds.select(range(min(args.num_samples, len(ds))))
     print("Loaded Dataset with {} samples".format(len(ds)))
 
     def preprocess_function(examples):
