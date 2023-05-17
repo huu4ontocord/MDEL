@@ -88,7 +88,7 @@ def parse_args():
 
     parser.add_argument(
         "--num-samples",
-        type=str,
+        type=int,
         required=False,
         default=10000,
         help="Max number of samples to evaluate on",
