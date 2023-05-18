@@ -6,6 +6,7 @@ import torch
 import argparse
 import traceback
 import braceexpand
+import warnings
 import numpy as np
 import pandas as pd
 import webdataset as wds
@@ -13,6 +14,8 @@ import webdataset as wds
 from tqdm import tqdm
 from dalle_pytorch.vae import VQGanVAE
 from huggingface_hub import hf_hub_download
+
+warnings.filterwarnings("ignore", category=UserWarning)
 
 VQGAN_VAE_PATH = "https://huggingface.co/boris/vqgan_f16_16384/blob/main/model.ckpt"
 VQGAN_VAE_CONFIG_PATH = (
@@ -119,7 +122,6 @@ def main():
         except Exception:
             print(f"[-] Failed to process {basename}:", file=sys.stderr)
             traceback.print_exc()
-
 
 if __name__ == "__main__":
     main()
