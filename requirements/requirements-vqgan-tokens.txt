@@ -1,0 +1,8 @@
+boto3
+pandas
+tqdm
+numpy
+dalle-pytorch
+pytorch-lightning==1.7.7
+huggingface_hub
+pyarrow
