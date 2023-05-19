@@ -14,6 +14,8 @@ import torch.multiprocessing as mp
 
 from tqdm import tqdm
 from dalle_pytorch.vae import VQGanVAE
+from timeit import default_timer as timer
+
 from huggingface_hub import hf_hub_download
 
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -148,6 +150,8 @@ def main():
 
     paths = list(braceexpand.braceexpand(args.paths))
 
+    start = timer()
+
     mp.spawn(
         process_chunk,
         args=(
@@ -162,6 +166,8 @@ def main():
         ),
         nprocs=args.num_gpus,
     )
+
+    print(f"Processing {len(paths)} shards took {timer() - start} seconds")
 
 
 if __name__ == "__main__":
