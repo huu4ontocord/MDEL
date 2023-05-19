@@ -12,6 +12,7 @@ import pandas as pd
 import webdataset as wds
 
 from tqdm import tqdm
+import torch.multiprocessing as mp
 from dalle_pytorch.vae import VQGanVAE
 from huggingface_hub import hf_hub_download
 
@@ -28,6 +29,73 @@ EXPECTED_CHUNK_SIZE = 10000
 def collate(batch):
     images, metas = zip(*batch)
     return torch.stack(images), metas
+
+
+def process_chunk(
+    rank,
+    world_size,
+    vqgan_model_path,
+    vqgan_config_path,
+    paths,
+    output_dir,
+    num_workers,
+    batch_size,
+    s3,
+):
+    model = VQGanVAE(
+        vqgan_model_path=vqgan_model_path, vqgan_config_path=vqgan_config_path
+    ).to(device=rank)
+
+    num_paths_per_chunk = int(np.ceil(len(paths) / world_size))
+    for path in tqdm(
+        paths[
+            rank
+            * num_paths_per_chunk : min(len(paths), (rank + 1) * num_paths_per_chunk)
+        ]
+    ):
+        basename = os.path.basename(path)
+        output_path = os.path.join(
+            output_dir, os.path.splitext(basename)[0] + ".parquet"
+        )
+
+        if s3:
+            path = f"pipe:aws s3 cp {path} -"
+        try:
+            dataset = (
+                wds.WebDataset(path)
+                .decode(wds.imagehandler("torchrgb"))
+                .to_tuple("jpg", "json")
+            )
+
+            dataloader = torch.utils.data.DataLoader(
+                dataset,
+                batch_size=batch_size,
+                collate_fn=collate,
+                pin_memory=True,
+                num_workers=num_workers,
+            )
+            rows = []
+            embeddings = []
+            for images, metas in tqdm(
+                dataloader,
+                total=int(np.ceil(EXPECTED_CHUNK_SIZE / batch_size)),
+                desc=basename,
+                leave=False,
+            ):
+                z = model.get_codebook_indices(images.to(rank))
+                z = z.to(torch.int16)
+
+                rows.extend(metas)
+                embeddings.append(z)
+            embeddings = torch.cat(embeddings, axis=0)
+
+            df = pd.DataFrame(rows)
+            embeddings_cpu = embeddings.cpu().numpy().reshape(len(df), -1)
+            df["code"] = [item.tobytes() for item in embeddings_cpu]
+            df.to_parquet(output_path, compression="brotli")
+        except Exception:
+            print(f"[-] Failed to process {basename}:", file=sys.stderr)
+            traceback.print_exc()
 
 
 def main():
@@ -62,6 +130,13 @@ def main():
         default=128,
         help="Batch size for the dataloader",
     )
+    parser.add_argument(
+        "-ng",
+        "--num_gpus",
+        type=int,
+        default=8,
+        help="Number of GPUs to use",
+    )
     args = parser.parse_args()
 
     vqgan_model = hf_hub_download(
@@ -71,57 +146,23 @@ def main():
         repo_id="boris/vqgan_f16_16384", filename="config.yaml"
     )
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = VQGanVAE(vqgan_model_path=vqgan_model, vqgan_config_path=vqgan_config).to(
-        device=device
-    )
-
     paths = braceexpand.braceexpand(args.paths)
 
-    for path in tqdm(paths):
-        basename = os.path.basename(path)
-        output_path = os.path.join(
-            args.output_dir, os.path.splitext(basename)[0] + ".parquet"
-        )
+    mp.spawn(
+        process_chunk,
+        args=(
+            args.num_gpus,
+            vqgan_model,
+            vqgan_config,
+            paths,
+            args.output_dir,
+            args.num_workers,
+            args.batch_size,
+            args.s3,
+        ),
+        nprocs=args.num_gpus,
+    )
 
-        if args.s3:
-            path = f"pipe:aws s3 cp {path} -"
-        try:
-            dataset = (
-                wds.WebDataset(path)
-                .decode(wds.imagehandler("torchrgb"))
-                .to_tuple("jpg", "json")
-            )
-
-            dataloader = torch.utils.data.DataLoader(
-                dataset,
-                batch_size=args.batch_size,
-                collate_fn=collate,
-                pin_memory=True,
-                num_workers=args.num_workers,
-            )
-            rows = []
-            embeddings = []
-            for images, metas in tqdm(
-                dataloader,
-                total=int(np.ceil(EXPECTED_CHUNK_SIZE / args.batch_size)),
-                desc=basename,
-                leave=False,
-            ):
-                z = model.get_codebook_indices(images.to(device))
-                z = z.to(torch.int16)
-
-                rows.extend(metas)
-                embeddings.append(z)
-            embeddings = torch.cat(embeddings, axis=0)
-
-            df = pd.DataFrame(rows)
-            embeddings_cpu = embeddings.cpu().numpy().reshape(len(df), -1)
-            df["code"] = [item.tobytes() for item in embeddings_cpu]
-            df.to_parquet(output_path, compression="brotli")
-        except Exception:
-            print(f"[-] Failed to process {basename}:", file=sys.stderr)
-            traceback.print_exc()
 
 if __name__ == "__main__":
     main()
