@@ -10,9 +10,9 @@ import warnings
 import numpy as np
 import pandas as pd
 import webdataset as wds
+import torch.multiprocessing as mp
 
 from tqdm import tqdm
-import torch.multiprocessing as mp
 from dalle_pytorch.vae import VQGanVAE
 from huggingface_hub import hf_hub_download
 
@@ -47,12 +47,11 @@ def process_chunk(
     ).to(device=rank)
 
     num_paths_per_chunk = int(np.ceil(len(paths) / world_size))
-    for path in tqdm(
-        paths[
-            rank
-            * num_paths_per_chunk : min(len(paths), (rank + 1) * num_paths_per_chunk)
-        ]
-    ):
+
+    worker_paths = paths[
+        rank * num_paths_per_chunk : min(len(paths), (rank + 1) * num_paths_per_chunk)
+    ]
+    for path in worker_paths:
         basename = os.path.basename(path)
         output_path = os.path.join(
             output_dir, os.path.splitext(basename)[0] + ".parquet"
@@ -79,7 +78,8 @@ def process_chunk(
             for images, metas in tqdm(
                 dataloader,
                 total=int(np.ceil(EXPECTED_CHUNK_SIZE / batch_size)),
-                desc=basename,
+                desc=f"Rank : {rank}, Shard: {basename}",
+                position=rank,
                 leave=False,
             ):
                 z = model.get_codebook_indices(images.to(rank))
@@ -146,7 +146,7 @@ def main():
         repo_id="boris/vqgan_f16_16384", filename="config.yaml"
     )
 
-    paths = braceexpand.braceexpand(args.paths)
+    paths = list(braceexpand.braceexpand(args.paths))
 
     mp.spawn(
         process_chunk,
