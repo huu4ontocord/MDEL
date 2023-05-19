@@ -123,14 +123,14 @@ def main():
         "-nw",
         "--num_workers",
         type=int,
-        help="Number of workers for the dataloader",
+        help="Number of workers per gpu for the dataloader",
     )
     parser.add_argument(
         "-bs",
         "--batch_size",
         type=int,
         default=128,
-        help="Batch size for the dataloader",
+        help="Batch size per gpu for the dataloader",
     )
     parser.add_argument(
         "-ng",
