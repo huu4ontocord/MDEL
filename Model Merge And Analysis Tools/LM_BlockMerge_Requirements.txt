@@ -1,0 +1,5 @@
+git+https://github.com/huggingface/transformers
+torch
+numpy
+tkinter
+shutil
