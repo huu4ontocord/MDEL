@@ -24,6 +24,7 @@ VQGAN_VAE_PATH = "https://huggingface.co/boris/vqgan_f16_16384/blob/main/model.c
 VQGAN_VAE_CONFIG_PATH = (
     "https://huggingface.co/boris/vqgan_f16_16384/blob/main/config.yaml"
 )
+ALLOWED_DATASETS = ["laion", "mmc4"]
 
 EXPECTED_CHUNK_SIZE = 10000
 
@@ -31,6 +32,37 @@ EXPECTED_CHUNK_SIZE = 10000
 def collate(batch):
     images, metas = zip(*batch)
     return torch.stack(images), metas
+
+
+def get_dataset(dataset_type, path, s3):
+    if s3:
+        path = f"pipe:aws s3 cp {path} -"
+
+    if dataset_type == "laion":
+        dataset = (
+            wds.WebDataset(path)
+            .decode(wds.imagehandler("torchrgb"))
+            .to_tuple("jpg", "json")
+        )
+        return dataset
+    elif dataset_type == "mmc4":
+
+        def resize_image(sample):
+            keys = ["png", "jpg", "jpeg"]
+            for key in keys:
+                if key in sample:
+                    image = np.array(sample[key].resize((256, 256))).astype(np.float32)
+                    image = image.transpose(2, 0, 1) / 255.0
+                    sample["image"] = torch.from_numpy(image)
+            return sample
+
+        dataset = (
+            wds.WebDataset(path)
+            .decode("pil")
+            .map(resize_image)
+            .to_tuple("image", "__key__")
+        )
+        return dataset
 
 
 def process_chunk(
@@ -43,6 +75,7 @@ def process_chunk(
     num_workers,
     batch_size,
     s3,
+    dataset,
 ):
     model = VQGanVAE(
         vqgan_model_path=vqgan_model_path, vqgan_config_path=vqgan_config_path
@@ -59,15 +92,8 @@ def process_chunk(
             output_dir, os.path.splitext(basename)[0] + ".parquet"
         )
 
-        if s3:
-            path = f"pipe:aws s3 cp {path} -"
         try:
-            dataset = (
-                wds.WebDataset(path)
-                .decode(wds.imagehandler("torchrgb"))
-                .to_tuple("jpg", "json")
-            )
-
+            dataset = get_dataset(dataset, path, s3)
             dataloader = torch.utils.data.DataLoader(
                 dataset,
                 batch_size=batch_size,
@@ -77,14 +103,14 @@ def process_chunk(
             )
             rows = []
             embeddings = []
-            for images, metas in tqdm(
+            for data, metas in tqdm(
                 dataloader,
                 total=int(np.ceil(EXPECTED_CHUNK_SIZE / batch_size)),
                 desc=f"Rank : {rank}, Shard: {basename}",
                 position=rank,
                 leave=False,
             ):
-                z = model.get_codebook_indices(images.to(rank))
+                z = model.get_codebook_indices(data.to(rank))
                 z = z.to(torch.int16)
 
                 rows.extend(metas)
@@ -139,6 +165,13 @@ def main():
         default=8,
         help="Number of GPUs to use",
     )
+    parser.add_argument(
+        "-ds",
+        "--dataset",
+        type=str,
+        default="laion",
+        help="Type of dataset used. Can be 'laion' or 'mmc4'",
+    )
     args = parser.parse_args()
 
     vqgan_model = hf_hub_download(
@@ -152,6 +185,11 @@ def main():
 
     start = timer()
 
+    if args.dataset not in ALLOWED_DATASETS:
+        raise ValueError(
+            f"Dataset must be one of {ALLOWED_DATASETS}, got {args.dataset}"
+        )
+
     mp.spawn(
         process_chunk,
         args=(
@@ -163,6 +201,7 @@ def main():
             args.num_workers,
             args.batch_size,
             args.s3,
+            args.dataset,
         ),
         nprocs=args.num_gpus,
     )
