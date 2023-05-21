@@ -1,0 +1,84 @@
+---All tools provided originate from Ontocord associated family (KoboldAI community)---
+
+StratusScope is a language model layer analysis tool that shows the aggregate difference per-layer from a base model
+VS any fine-tuned variant in bar graph format and posts tensors to console along with found differences.
+
+LM_BlockMerge is a per-layer language model merging tool that empowers one to choose a percent of each layer to weight-sum merge from model A to model B.
+
+EnhancedMixer is a simple weight-sum merge tool where one can run to choose two models to combine, merge percentage and simple parameters can be adjusted inside the well documented .py script.
+
+------------------------------------
+In-Depth Explainer on Each Tool:
+------------------------------------
+
+[[StratusScope]]
+
+Is a language model tool that utilizes HuggingFace's Transformers library and loads two language models of the same architecture and parameter size, consolidates the weights and biases within each layer of both models in memory, examines the aggregate difference between layers, and generates a bar graph detailing which layers have the most difference between each model with matplotlib.
+
+Use Case - This is an invaluable tool to measure layer differences between a base model and a fine-tune of that model to determine which layers inherited the most change from fine-tuning.
+
+Original Git [Author: Digitous]
+https://github.com/Digitous/StratusScope
+
+------------------------------------
+
+[[Language Model Transformer Block Merge]]
+
+Uses a tkinter GUI that analyzes two selected models and allows per-layer percentage
+weight merging controlled by the user (inspired by an Image Diffusion block merging
+technique and applied to transformers based Language Models).
+
+Usage:
+Start the script via the command
+[On Linux] python ./LM_BlockMerge.py
+[On Windows] python LM_BlockMerge.py
+The script will then prompt you for three folders:
+The first model
+The first model will be used as a base for the transformers configuration, and will be used as reference when handling the layers and weights.
+The second model
+The second model will only be used for providing the secondary layers for the merge.
+The output folder
+The resulting model will be saved inside the selected directory, in a folder called "./this/is/your/chosen_path/" + "/converted_model"
+The script will then load the weights in memory, according to the precision (32/16 bit) chosen in the configuration header, and will subsequently prompt the user with a popup GUI listing all of the layers available in the selected models.
+
+The user will be able to merge layers according to any strategy, ranging from:
+Creating the output_model by completely replacing N layers at will;
+Creating the output_model by chosing an individual mix ratio on N layers;
+Any mix of the two strategies on N chosen layers.
+The layers will be merged according to the individual choices per layer, and the resulting model weights will be saved onto the output folder, alongside the first model's config.json file.
+
+Available output settings:
+fp16 = False                # Perform operations in fp16. Saves memory, but CPU inference will not be possible.
+always_output_fp16 = True   # If true, will output fp16 even if operating in fp32
+max_shard_size = "2000MiB"  # Set output shard size
+verbose_info = True         # Will show model information when loading
+force_cpu = True            # Only use cpu
+
+Supported Models:
+GPT-NeoX, Pythia, GPT-J, Opt, Llama
+Pseudo-Supported Models:
+
+BERT (testing required to validate implementation)
+Notes:
+
+Performing the operation in FP16 mode halves the memory requirements, but will massively slow down the process of loading up the models on memory; Always outputting in fp16 is preferable to save in storage space, especially if the original weights were quantized down to 16bit already. But if your original models are using 32bit precision, then be sure whether you wish to halve the precision of the resulting file or not.
+
+Model loading is automatic; the script determines the model type and adjusts accordingly, no special command-line flags required. Current GPT-NeoX support is hacky, it tends to have an error mid-merge with 20B; it might work on GPT-NeoX and Pythia models of a smaller size 6b or lower for now until a solution is implemented.
+
+Original Git [Collaborators: LostRuins aka Concedo and TeH_Venom aka TehVenomm and Chasm aka Digitous aka Erik]
+https://github.com/TehVenomm/LM_Transformers_BlockMerge
+
+------------------------------------
+
+[[Enhanced Mixer]]
+
+Simple tool that allows a user to select two model of the same architecture and param size and merge. Settings for merge percentage and more are documented inside the script. Simply run to select which models to merge.
+
+No GitHub Page [Original Author: LostRuins | Enhancements by: Digitous]
+
+------------------------------------
+
+Authors GitHub Pages:
+https://github.com/LostRuins
+https://github.com/TehVenomm
+https://github.com/Digitous

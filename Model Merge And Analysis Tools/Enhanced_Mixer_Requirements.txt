@@ -1,0 +1,6 @@
+git+https://github.com/huggingface/transformers
+numpy
+matplotlib
+tkinter
+colorama
+shutil
