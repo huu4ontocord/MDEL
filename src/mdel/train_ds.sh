@@ -15,23 +15,12 @@ else
     exit 1
 fi
 
-accelerate launch trainer.py \
+deepspeed trainer.py \
         --configs defaults   \
         --dataset_name Multi-Domain-Expert-Layers/$DATASET \
         --model_name_or_path EleutherAI/pythia-1b-deduped \
         --output_dir "ckpts/pythia-1b-deduped/$DATASET/layer_$TRAINING_LAYERS" \
         --training_layers $TRAINING_LAYERS \
-        --per_device_train_batch_size 1 \
-        --per_device_eval_batch_size 8 \
-        --preprocessing_num_workers 32 \
-        --learning_rate 1e-4 \
-        --block_size 512 \
-        --num_train_epochs 1 \
-        --gradient_accumulation_steps 8 \
-        --evaluation_strategy steps \
-        --eval_steps 200 \
-        --logging_steps 20 \
-        --max_steps 1000 \
         --push_to_hub true \
         --push_to_hub_model_id expert-$DATASET \
         --push_to_hub_organization Multi-Domain-Expert-Layers \
@@ -39,5 +28,3 @@ accelerate launch trainer.py \
         --wandb_project $WANDB_PROJECT \
         --wandb_run_name $WANDB_NAME \
         --validation_splits "validation_pile,validation_domain" \
-        --dtype "float32" \
-        --no_deepspeed

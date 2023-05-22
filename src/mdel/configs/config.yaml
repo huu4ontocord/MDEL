@@ -1,23 +1,87 @@
-dataset_name: Multi-Domain-Expert-Layers/arxiv
-model_name_or_path: EleutherAI/pythia-1b-deduped
-output_dir: "ckpts/pythia-1b-deduped/uspto/layer_9,10,11,12,13"
-training_layers: "4,5"
-per_device_train_batch_size: 32
-per_device_eval_batch_size: 20
-preprocessing_num_workers: 32
-learning_rate: 0.0001
-block_size: 512
-num_train_epochs: 1
-gradient_accumulation_steps: 1
-do_train: true
-do_eval: true
-evaluation_strategy: "steps"
-save_total_limit: 2
-max_grad_norm: 2.0
-save_steps: 500
-overwrite_output_dir: true
-logging_steps: 20
-deepspeed: "configs/zero_config.json"
-fp16: true
-wandb_entity: "ontocord"
-wandb_project: "layer-experts"
+defaults:
+  dataset_name: Multi-Domain-Expert-Layers/arxiv
+  model_name_or_path: EleutherAI/pythia-1b-deduped
+  output_dir: "ckpts/pythia-1b-deduped/uspto/layer_9,10,11,12,13"
+  training_layers: "4,5"
+  per_device_train_batch_size: 32
+  per_device_eval_batch_size: 20
+  preprocessing_num_workers: 32
+  learning_rate: 0.0001
+  block_size: 512
+  num_train_epochs: 1
+  gradient_accumulation_steps: 1
+  do_train: true
+  do_eval: true
+  evaluation_strategy: "steps"
+  save_total_limit: 2
+  max_grad_norm: 2.0
+  save_steps: 500
+  deepspeed: "configs/zero_config.json"
+  overwrite_output_dir: true
+  logging_steps: 20
+  dtype: "float16"
+  wandb_entity: "ontocord"
+  wandb_project: "layer-experts"
+  wandb_run_name: "default"
+  # Model and Tokenizer related settings
+  model_revision: "main"
+  validation_splits:
+  config_name:
+  tokenizer_name:
+  use_fast_tokenizer: true
+  low_cpu_mem_usage: false
+  eval_steps: 200
+
+  # Dataset related settings
+  dataset_config_name:
+  max_train_samples:
+  max_eval_samples:
+  streaming:
+  overwrite_cache: false
+
+  # Training related settings
+  gradient_checkpointing: false
+  warmup_steps: 0
+  adam_beta1: 0.9
+  adam_beta2: 0.99
+  adam_epsilon: 1e-8
+  weight_decay: 0
+  save_strategy: "steps"
+  quantization:
+
+  # Logging and Caching
+  log_wandb: true
+  cache_dir:
+  use_auth_token:
+
+  push_to_hub:
+  push_to_hub_organization:
+  push_to_hub_model_id:
+
+  max_steps: -1
+
+debug:
+  model_name_or_path: "EleutherAI/pythia-70m-deduped"
+  output_dir: "layer9"
+  training_layers: "4,5"
+  per_device_train_batch_size: 1
+  per_device_eval_batch_size: 1
+  preprocessing_num_workers: 32
+  learning_rate: 1e-4
+  block_size: 512
+  num_train_epochs: 1
+  gradient_accumulation_steps: 1
+  do_train: true
+  do_eval: true
+  evaluation_strategy: "steps"
+  save_total_limit: 2
+  max_grad_norm: 2.0
+  save_steps: 1
+  eval_steps: 1
+  max_steps: 1
+  dtype: "float32"
+  overwrite_output_dir: true
+  logging_steps: 20
+  validation_splits: "validation_pile,validation_domain"
+  max_train_samples: 2
+  max_eval_samples: 2
