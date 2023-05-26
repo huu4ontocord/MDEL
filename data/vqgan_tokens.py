@@ -29,11 +29,6 @@ ALLOWED_DATASETS = ["laion", "mmc4"]
 EXPECTED_CHUNK_SIZE = 10000
 
 
-def collate(batch):
-    images, metas = zip(*batch)
-    return torch.stack(images), metas
-
-
 def get_dataset(dataset_type, path, s3):
     if s3:
         path = f"pipe:aws s3 cp {path} -"
@@ -75,7 +70,7 @@ def process_chunk(
     num_workers,
     batch_size,
     s3,
-    dataset,
+    dataset_type,
 ):
     model = VQGanVAE(
         vqgan_model_path=vqgan_model_path, vqgan_config_path=vqgan_config_path
@@ -86,6 +81,7 @@ def process_chunk(
     worker_paths = paths[
         rank * num_paths_per_chunk : min(len(paths), (rank + 1) * num_paths_per_chunk)
     ]
+    print (f"Rank: {rank} processing {len(worker_paths)} shards")
     for path in worker_paths:
         basename = os.path.basename(path)
         output_path = os.path.join(
@@ -93,11 +89,10 @@ def process_chunk(
         )
 
         try:
-            dataset = get_dataset(dataset, path, s3)
+            dataset = get_dataset(dataset_type, path, s3)
             dataloader = torch.utils.data.DataLoader(
-                dataset,
-                batch_size=batch_size,
-                collate_fn=collate,
+                dataset.batched(batch_size),
+                batch_size=None,
                 pin_memory=True,
                 num_workers=num_workers,
             )
@@ -172,13 +167,19 @@ def main():
         default="laion",
         help="Type of dataset used. Can be 'laion' or 'mmc4'",
     )
+    parser.add_argument(
+        "-md",
+        "--model_dir",
+        type=str,
+        help="Path to the directory to download hf models",
+    )
     args = parser.parse_args()
 
     vqgan_model = hf_hub_download(
-        repo_id="boris/vqgan_f16_16384", filename="model.ckpt"
+        repo_id="boris/vqgan_f16_16384", filename="model.ckpt", cache_dir=args.model_dir
     )
     vqgan_config = hf_hub_download(
-        repo_id="boris/vqgan_f16_16384", filename="config.yaml"
+        repo_id="boris/vqgan_f16_16384", filename="config.yaml", cache_dir=args.model_dir
     )
 
     paths = list(braceexpand.braceexpand(args.paths))
@@ -190,21 +191,27 @@ def main():
             f"Dataset must be one of {ALLOWED_DATASETS}, got {args.dataset}"
         )
 
-    mp.spawn(
-        process_chunk,
-        args=(
-            args.num_gpus,
-            vqgan_model,
-            vqgan_config,
-            paths,
-            args.output_dir,
-            args.num_workers,
-            args.batch_size,
-            args.s3,
-            args.dataset,
-        ),
-        nprocs=args.num_gpus,
-    )
+    if not os.path.exists(args.output_dir):
+        os.makedirs(args.output_dir)
+
+    if args.num_gpus > 1:
+        mp.spawn(
+            process_chunk,
+            args=(
+                args.num_gpus,
+                vqgan_model,
+                vqgan_config,
+                paths,
+                args.output_dir,
+                args.num_workers,
+                args.batch_size,
+                args.s3,
+                args.dataset,
+            ),
+            nprocs=args.num_gpus,
+        )
+    else:
+        process_chunk(0, 1, vqgan_model, vqgan_config, paths, args.output_dir, args.num_workers, args.batch_size, args.s3, args.dataset)
 
     print(f"Processing {len(paths)} shards took {timer() - start} seconds")
 

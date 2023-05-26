@@ -1,4 +1,4 @@
-boto3
+#boto3
 pandas
 tqdm
 numpy
