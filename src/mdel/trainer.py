@@ -95,6 +95,7 @@ def argument_parsing(notebook=False, notebook_args=None):
     """,
     )
     parser.add_argument("--local_rank", type=int, default=-1)
+    parser.add_argument("--max_train_samples", type=int, default=None)
     parser.add_argument("--deepspeed", action="store_true")
     parser.add_argument("--no_deepspeed", action="store_true")
     parser.add_argument("--wandb-entity", type=str, default="open-assistant")
@@ -174,6 +175,7 @@ def main():
         output_dir=training_conf.output_dir,
         num_train_epochs=training_conf.num_train_epochs,
         warmup_steps=training_conf.warmup_steps,
+        max_steps=training_conf.max_steps,
         learning_rate=float(training_conf.learning_rate),
         deepspeed=training_conf.deepspeed if training_conf.deepspeed else None,
         optim=optimizer,
@@ -587,6 +589,30 @@ def main():
         if args.do_eval and not is_torch_tpu_available()
         else None,
     )
+
+    # Evaluation
+    if args.do_eval:
+        logger.info("*** Evaluate ***")
+        eval_dataset = datasets.concatenate_datasets(
+            [eval_dataset for eval_dataset in eval_datasets.values()]
+        )
+
+        metrics = trainer.evaluate(eval_dataset=eval_dataset)
+
+        max_eval_samples = (
+            training_conf.max_eval_samples
+            if training_conf.max_eval_samples is not None
+            else len(eval_dataset)
+        )
+        metrics["eval_samples"] = min(max_eval_samples, len(eval_dataset))
+        try:
+            perplexity = math.exp(metrics["eval_loss"])
+        except OverflowError:
+            perplexity = float("inf")
+        metrics["perplexity"] = perplexity
+
+        trainer.log_metrics("eval", metrics)
+        trainer.save_metrics("eval", metrics)
 
     # Training
     if args.do_train:
