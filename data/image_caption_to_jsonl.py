@@ -5,10 +5,15 @@ import pandas as pd
 from tqdm import tqdm
 import argparse
 import re
+import argparse
+import os
+import pandas as pd
+from concurrent.futures import ThreadPoolExecutor
+import concurrent
 import random
 
 def get_file_name_from_index(index, dataset, dataset_path):
-    if dataset == "laion_1b" or dataset == "laion_2b_en" or dataset == "laion_2b_multi":
+    if dataset == "laion_1b" or dataset == "laion_2b_en" or dataset == "laion_2b_multi" or dataset =="cc12m":
         # List all files in the dataset_path
         files = os.listdir(dataset_path)
         
@@ -111,7 +116,8 @@ def get_text_variant(image_tag, caption):
     text = text_variant[0] + " " + image_tag + " " + text_variant[1] + " " + caption
     return text
 
-def convert_parquet_to_jsonl(df, output_dir, output_filename, dataset_name):
+def convert_parquet_to_jsonl(df, index, output_dir, output_filename, dataset_name):
+    print("Converting to jsonl.", os.path.join(output_dir, output_filename))
     df['image_info'] = df.apply(lambda x: [{"image_name": x['key'], "raw_url": x['url'], "matched_text_index": 1, "width": x['width'], "height": x['height']}], axis=1)
     df["shard_index"] = index
     df["index"] = df.reset_index().index
@@ -120,10 +126,20 @@ def convert_parquet_to_jsonl(df, output_dir, output_filename, dataset_name):
     df['text'] = df.apply(lambda x: get_text_variant('<|image|> <<'+str(x['shard_index']) +', '+ str(x['index']) +', '+x['dataset']+', '+x['modality']+'>> <|/image|>', x['caption']), axis=1)
     df = df[['text', 'image_info', 'shard_index', 'index', 'dataset', 'modality']]
     json_df = json.loads(df.to_json(orient="records"))
+    print("Done converting to jsonl.")
     with open(os.path.join(output_dir, output_filename), 'w') as outfile:
         for entry in tqdm(json_df):
             json.dump(entry, outfile)
             outfile.write('\n')
+    print("Done writing to jsonl.", os.path.join(output_dir, output_filename))
+
+def process_file(index, args):
+    input_path = os.path.join(args.input_dir, get_file_name_from_index(index, args.dataset, args.input_dir))
+    print("Processing file: ", input_path)
+    df = pd.read_parquet(input_path)
+    output_filename = input_path.split('/')[-1].replace("parquet", "jsonl")
+    print("Loaded file: ", input_path)
+    convert_parquet_to_jsonl(df, index, args.output_dir, output_filename, args.dataset)
 
 # Main function
 if __name__ == "__main__":
@@ -133,11 +149,16 @@ if __name__ == "__main__":
     parser.add_argument("--output_dir", type=str, required=True, help="Path to the output directory")
     parser.add_argument("--start_index", type=int, required=True, help="Start index of the dataset")
     parser.add_argument("--end_index", type=int, required=True, help="End index of the dataset")
+    parser.add_argument("--workers", type=int, required=True, help="Number of workers")
 
     args = parser.parse_args()
-    for i in range(args.start_index, args.end_index):
-        index = i
-        input_path = os.path.join(args.input_dir, get_file_name_from_index(index, args.dataset, args.input_dir))
-        df = pd.read_parquet(input_path)
-        output_filename = input_path.split('/')[-1].replace("parquet", "jsonl")
-        convert_parquet_to_jsonl(df, args.output_dir, output_filename, "laion_5b")
+    print("The number of workers is", args.workers)
+
+    # Parallel processing with ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=args.workers) as executor:
+        futures = [executor.submit(process_file, index, args) for index in range(args.start_index, args.end_index)]
+        for future in concurrent.futures.as_completed(futures):
+            try:
+                result = future.result()
+            except Exception as e:
+                print(f"An error occurred: {e}")
