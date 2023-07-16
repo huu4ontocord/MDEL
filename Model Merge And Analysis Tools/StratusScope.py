@@ -1,12 +1,13 @@
+import json
 import os
 import subprocess
-import json
-import torch
-from transformers import AutoModel, AutoConfig, logging
-import numpy as np
-import matplotlib.pyplot as plt
 from tkinter import Tk, filedialog
-from colorama import init, Fore, Style
+
+import matplotlib.pyplot as plt
+import numpy as np
+import torch
+from colorama import Fore, Style, init
+from transformers import AutoConfig, AutoModel, logging
 
 logging.set_verbosity_warning()
 logging.set_verbosity_error()
@@ -83,7 +84,7 @@ def compare_layers(model1_folder, model2_folder):
             print(f"p1 = {p1}")
             p2 = p2.detach().to(torch.float32)
             print(f"p2 = {p2}")
-            
+
             if not (torch.isinf(p1).any() or torch.isinf(p2).any()):
                 diff = torch.abs(p1 - p2).sum().item()
                 layer_diff += diff
