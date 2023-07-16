@@ -1,12 +1,11 @@
 import joblib
 from datasets import load_dataset
-from tokenizers import Tokenizer
-from sklearn.model_selection import train_test_split
-from sklearn.pipeline import Pipeline
 from sklearn.feature_extraction import FeatureHasher
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report
-
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import Pipeline
+from tokenizers import Tokenizer
 
 data_url = [
     "Multi-Domain-Expert-Layers/pubmed_abstracts",
@@ -27,7 +26,9 @@ tokenizer.enable_truncation(max_length=1024)
 
 tokenized_datasets = []
 for ed in expert_datasets:
-    tokenized_datasets.append(ed['train'].map(lambda x: {"token": [i.tokens for i in tokenizer.encode_batch(x["text"])]}, batched=True))
+    tokenized_datasets.append(ed['train'].map(lambda x: {
+        "token": [i.tokens for i in tokenizer.encode_batch(x["text"])]
+    }, batched=True))
 
 
 features = []
@@ -41,7 +42,12 @@ for ed, lab in zip(expert_datasets, data_url):
 X_train, X_test, y_train, y_test = train_test_split(features, label, test_size=0.2, random_state=42)
 
 
-pipeline = Pipeline([('hasher', FeatureHasher(n_features=512, input_type="string")), ('lr', LogisticRegression(multi_class='multinomial', solver='lbfgs'))])
+pipeline = Pipeline(
+    [
+        ('hasher', FeatureHasher(n_features=512, input_type="string")),
+        ('lr', LogisticRegression(multi_class='multinomial', solver='lbfgs'))
+    ]
+)
 pipeline.fit(X_train, y_train)
 
 
