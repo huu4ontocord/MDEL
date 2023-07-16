@@ -1,0 +1,29 @@
+name: mdel
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  - pytorch==2.0.*
+  - pytorch-cuda==11.8
+  - cuda
+  - pip
+  - git=2.35.1
+  - ninja
+  - make
+  - cxx-compiler
+  - wget
+  - git-lfs
+  - pip:
+    - accelerate~=0.18.0
+    - datasets~=2.11.0
+    - deepspeed==0.9.2
+    - evaluate~=0.4.0
+    - pre-commit~=2.21.0
+    - scikit-learn~=1.2.2
+    - tqdm~=4.65.0
+    - transformers~=4.28.1
+    - ujson~=5.7.0
+    - wandb==0.15.2
+    - zstandard~=0.21.0
