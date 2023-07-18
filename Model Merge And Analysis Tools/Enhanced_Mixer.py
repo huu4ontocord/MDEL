@@ -5,14 +5,17 @@ Now, an incredible leap forward in Language Model engineering and experimentatio
 Script modified by Chasm/Digitous
 '''
 
-import os
-import subprocess
-import torch
-import shutil
 import json
-from transformers import AutoModelForCausalLM, AutoTokenizer, AutoModel, LlamaForCausalLM, LlamaConfig, LlamaTokenizer, PreTrainedTokenizer, PreTrainedTokenizerFast
+import os
+import shutil
+import subprocess
 from tkinter.filedialog import askdirectory, askopenfilename
-from colorama import init, Fore, Style
+
+import torch
+from colorama import Fore, Style, init
+from transformers import (AutoModel, AutoModelForCausalLM, AutoTokenizer,
+                          LlamaConfig, LlamaForCausalLM, LlamaTokenizer,
+                          PreTrainedTokenizer, PreTrainedTokenizerFast)
 
 newline = '\n'
 def clear_console():
@@ -22,7 +25,7 @@ def clear_console():
         subprocess.call("clear", shell=True)
 
 clear_console()
-print(f"{Fore.YELLOW}Starting script, please wait...{Style.RESET_ALL}")        
+print(f"{Fore.YELLOW}Starting script, please wait...{Style.RESET_ALL}")
 
 #mixer output settings
 blend_ratio = 0.5           #setting to 0 gives first model, and 1 gives second model
@@ -46,7 +49,7 @@ test_max_length = 32        #test generation length
 blend_ratio_b = 1.0 - blend_ratio
 
 def get_model_info(model):
-    with torch.no_grad(): 
+    with torch.no_grad():
         outfo = ""
         cntent = 0
         outfo += "\n==============================\n"
@@ -58,9 +61,9 @@ def get_model_info(model):
         return outfo
 
 def merge_models(model1,model2):
-    with torch.no_grad(): 
+    with torch.no_grad():
         tensornum = 0
-        for p1, p2 in zip(model1.parameters(), model2.parameters()): 
+        for p1, p2 in zip(model1.parameters(), model2.parameters()):
            p1 *= blend_ratio
            p2 *= blend_ratio_b
            p1 += p2
@@ -70,12 +73,12 @@ def merge_models(model1,model2):
 
 def read_index_filenames(sourcedir):
     index = json.load(open(sourcedir + '/pytorch_model.bin.index.json','rt'))
-    fl = []  
-    for k,v in index['weight_map'].items():       
-        if v not in fl: 
-            fl.append(v) 
+    fl = []
+    for k,v in index['weight_map'].items():
+        if v not in fl:
+            fl.append(v)
     return fl
-            
+
 print("Opening file dialog, please select FIRST model directory...")
 model_path1 = askdirectory(title="Select Directory of FIRST model to merge")
 print(f"First Model is: {model_path1}")
@@ -89,7 +92,7 @@ if not model_path1 or not model_path2:
     print("\nYou must select two directories containing models to merge and one output directory. Exiting.")
     exit()
 
-with torch.no_grad(): 
+with torch.no_grad():
     if fp16:
         torch.set_default_dtype(torch.float16)
     else:
@@ -99,20 +102,20 @@ with torch.no_grad():
     print(device)
 
     print("Loading Model 1...")
-    model1 = AutoModelForCausalLM.from_pretrained(model_path1) #,torch_dtype=torch.float16 
+    model1 = AutoModelForCausalLM.from_pretrained(model_path1) #,torch_dtype=torch.float16
     model1 = model1.to(device)
-    model1.eval()    
+    model1.eval()
     print("Model 1 Loaded. Dtype: " + str(model1.dtype))
     print("Loading Model 2...")
-    model2 = AutoModelForCausalLM.from_pretrained(model_path2) #,torch_dtype=torch.float16 
+    model2 = AutoModelForCausalLM.from_pretrained(model_path2) #,torch_dtype=torch.float16
     model2 = model2.to(device)
-    model2.eval()    
+    model2.eval()
     print("Model 2 Loaded. Dtype: " + str(model2.dtype))
 
 #   Saving for posterity reasons, handy for troubleshooting if model result is broken
 #    #ensure both models have the exact same layout
 #    m1_info = get_model_info(model1)
-#    m2_info = get_model_info(model2)    
+#    m2_info = get_model_info(model2)
 #    if m1_info != m2_info:
 #        print("Model 1 Info: " + m1_info)
 #        print("Model 2 Info: " + m2_info)

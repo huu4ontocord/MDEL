@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="52decd3d-2ba1-4f51-8aef-6a2d59927cdc" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/Model Merge And Analysis Tools/Enhanced_Mixer.py" beforeDir="false" afterPath="$PROJECT_DIR$/Model Merge And Analysis Tools/Enhanced_Mixer.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Model Merge And Analysis Tools/Enhanced_Mixer_Requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/Model Merge And Analysis Tools/Enhanced_Mixer_Requirements.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Model Merge And Analysis Tools/LM_BlockMerge.py" beforeDir="false" afterPath="$PROJECT_DIR$/Model Merge And Analysis Tools/LM_BlockMerge.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Model Merge And Analysis Tools/LM_BlockMerge_Requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/Model Merge And Analysis Tools/LM_BlockMerge_Requirements.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Model Merge And Analysis Tools/StratusScope.py" beforeDir="false" afterPath="$PROJECT_DIR$/Model Merge And Analysis Tools/StratusScope.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Model Merge And Analysis Tools/StratusScope_Requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/Model Merge And Analysis Tools/StratusScope_Requirements.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/conda-mdel.yml" beforeDir="false" afterPath="$PROJECT_DIR$/conda-mdel.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lora-x/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/lora-x/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mdel/train_cbtm_classifier.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/mdel/train_cbtm_classifier.py" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="MarkdownSettingsMigration">
+    <option name="stateVersion" value="1" />
+  </component>
+  <component name="ProjectId" id="2PjKNsFp9fiUBhbau2Dl9S0Rww8" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/Users/kentsui/opensource/MDEL&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable&quot;
+  }
+}</component>
+  <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/src/mdel" />
+    </key>
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="52decd3d-2ba1-4f51-8aef-6a2d59927cdc" name="Changes" comment="" />
+      <created>1683965013951</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1683965013951</updated>
+    </task>
+    <servers />
+  </component>
+</project>

@@ -1,10 +1,12 @@
 import os
 import shutil
 import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
 from tkinter import *
-from transformers import AutoTokenizer, AutoModelForCausalLM, LlamaForCausalLM, LlamaConfig
+from tkinter import filedialog, messagebox, ttk
+
 import torch
+from transformers import (AutoModelForCausalLM, AutoTokenizer, LlamaConfig,
+                          LlamaForCausalLM)
 
 #mixer output settings
 
@@ -65,7 +67,7 @@ if not first_model_path or not second_model_path:
     print("\nYou must select two directories containing models to merge and one output directory. Exiting.")
     exit()
 
-with torch.no_grad(): 
+with torch.no_grad():
     if fp16:
         torch.set_default_dtype(torch.float16)
     else:
@@ -73,20 +75,20 @@ with torch.no_grad():
 
     device = torch.device("cuda") if (torch.cuda.is_available() and not force_cpu) else torch.device("cpu")
     print(device)
-    
+
     # Load the first and second models
     print("Loading Model 1...")
     first_model = AutoModelForCausalLM.from_pretrained(first_model_path)
     first_model = first_model.to(device)
     first_model.eval()
     print("Model 1 Loaded. Dtype: " + str(first_model.dtype))
-    
+
     print("Loading Model 2...")
     second_model = AutoModelForCausalLM.from_pretrained(second_model_path)
     second_model = second_model.to(device)
     second_model.eval()
     print("Model 2 Loaded. Dtype: " + str(second_model.dtype))
-    
+
     # Determine the number of layers in the first model
     num_layers = first_model.config.num_hidden_layers
     #num_layers = len(first_model.transformer.h)
@@ -97,17 +99,17 @@ with torch.no_grad():
     class LayerSlider(tk.Frame):
         def __init__(self, parent, layer_num):
             super().__init__(parent)
-            
+
             self.layer_num = layer_num
-            
+
             # Create a label for the layer slider
             self.layer_label = tk.Label(self, text=f"Layer {layer_num}")
             self.layer_label.grid(row=0, column=0)
-            
+
             # Create a slider for the merge ratio
             self.slider = tk.Scale(self, from_=0, to=1, resolution=0.01, orient=tk.HORIZONTAL, length=400)
             self.slider.grid(row=0, column=1)
-            
+
     # Create a window with sliders for each layer
     layer_sliders = []
     for i in range(num_layers):
@@ -119,15 +121,15 @@ with torch.no_grad():
 
 # Create a "commit and merge" button
 def merge_models():
-    with torch.no_grad(): 
+    with torch.no_grad():
         # Read the merge ratios from the sliders
         merge_ratios = [layer_slider.slider.get() for layer_slider in layer_sliders]
-        
+
         #    # Check that the merge ratios add up to 1
         #    if sum(merge_ratios) != 1:
         #        messagebox.showerror("Error", "Merge ratios must add up to 1")
         #        return
-        
+
         # Merge the models using the merge ratios
         for i in range(num_layers):
             # Determine how much of each layer to use from each model
@@ -213,7 +215,7 @@ def merge_models():
                 second_model.model.layers[i].load_state_dict(merged_layer[0])
                 if verbose_info:
                     print("Migrating tensor " + str(i))
- 
+
             else:
 # model isn't supported
                 raise ValueError("Unsupported model architecture")
