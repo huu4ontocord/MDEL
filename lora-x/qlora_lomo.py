@@ -36,7 +36,7 @@ import pytorch_optimizer
 
 # Integrations must be imported before ML frameworks:
 # isort: off
-from transfromers.integrations import (
+from transformers.integrations import (
     get_reporting_integration_callbacks,
     hp_params,
     is_fairscale_available,
@@ -52,20 +52,20 @@ from packaging import version
 from torch import nn
 from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampler
 
-from transfromers import __version__
-from transfromers.configuration_utils import PretrainedConfig
-from transfromers.data.data_collator import DataCollator, DataCollatorWithPadding, default_data_collator
-from transfromers.debug_utils import DebugOption, DebugUnderflowOverflow
-from transfromers.deepspeed import deepspeed_init, deepspeed_load_checkpoint
-from transfromers.dependency_versions_check import dep_version_check
-from transfromers.hyperparameter_search import ALL_HYPERPARAMETER_SEARCH_BACKENDS, default_hp_search_backend
-from transfromers.modelcard import TrainingSummary
-from transfromers.modeling_utils import PreTrainedModel, load_sharded_checkpoint, unwrap_model
-from transfromers.models.auto.modeling_auto import MODEL_FOR_CAUSAL_LM_MAPPING_NAMES, MODEL_MAPPING_NAMES
-from transfromers.optimization import Adafactor, get_scheduler
-from transfromers.pytorch_utils import ALL_LAYERNORM_LAYERS
-from transfromers.tokenization_utils_base import PreTrainedTokenizerBase
-from transfromers.trainer_callback import (
+from transformers import __version__
+from transformers.configuration_utils import PretrainedConfig
+from transformers.data.data_collator import DataCollator, DataCollatorWithPadding, default_data_collator
+from transformers.debug_utils import DebugOption, DebugUnderflowOverflow
+from transformers.deepspeed import deepspeed_init, deepspeed_load_checkpoint
+from transformers.dependency_versions_check import dep_version_check
+from transformers.hyperparameter_search import ALL_HYPERPARAMETER_SEARCH_BACKENDS, default_hp_search_backend
+from transformers.modelcard import TrainingSummary
+from transformers.modeling_utils import PreTrainedModel, load_sharded_checkpoint, unwrap_model
+from transformers.models.auto.modeling_auto import MODEL_FOR_CAUSAL_LM_MAPPING_NAMES, MODEL_MAPPING_NAMES
+from transformers.optimization import Adafactor, get_scheduler
+from transformers.pytorch_utils import ALL_LAYERNORM_LAYERS
+from transformers.tokenization_utils_base import PreTrainedTokenizerBase
+from transformers.trainer_callback import (
     CallbackHandler,
     DefaultFlowCallback,
     PrinterCallback,
@@ -74,7 +74,7 @@ from transfromers.trainer_callback import (
     TrainerControl,
     TrainerState,
 )
-from transfromers.trainer_pt_utils import (
+from transformers.trainer_pt_utils import (
     DistributedTensorGatherer,
     IterableDatasetShard,
     LabelSmoother,
@@ -92,7 +92,7 @@ from transfromers.trainer_pt_utils import (
     nested_xla_mesh_reduce,
     reissue_pt_warnings,
 )
-from transfromers.trainer_utils import (
+from transformers.trainer_utils import (
     PREFIX_CHECKPOINT_DIR,
     BestRun,
     EvalLoopOutput,
@@ -117,8 +117,8 @@ from transfromers.trainer_utils import (
     set_seed,
     speed_metrics,
 )
-from transfromers.training_args import OptimizerNames, ParallelMode, TrainingArguments
-from transfromers.utils import (
+from transformers.training_args import OptimizerNames, ParallelMode, TrainingArguments
+from transformers.utils import (
     ADAPTER_CONFIG_NAME,
     ADAPTER_SAFE_WEIGHTS_NAME,
     ADAPTER_WEIGHTS_NAME,
@@ -231,7 +231,7 @@ class LOMO(BaseOptimizer, Optimizer):
         self.validate_non_negative(clip_grad_value, 'clip_grad_value')
 
         self.parameters = parameters[0]['params'] + parameters[1]['params']
-        print (parameters)
+        #print (parameters)
         self.lr = lr
         self.clip_grad_norm = clip_grad_norm
         self.clip_grad_value = clip_grad_value
@@ -1800,7 +1800,7 @@ class TrainingArguments:
             self.report_to = "all"
         if self.report_to == "all" or self.report_to == ["all"]:
             # Import at runtime to avoid a circular import.
-            from .integrations import get_available_reporting_integrations
+            from transformers.integrations import get_available_reporting_integrations
 
             self.report_to = get_available_reporting_integrations()
         elif self.report_to == "none" or self.report_to == ["none"]:
@@ -3078,7 +3078,7 @@ class Trainer:
     """
 
     # Those are used as methods of the Trainer in examples.
-    from .trainer_pt_utils import _get_learning_rate, log_metrics, metrics_format, save_metrics, save_state
+    from transformers.trainer_pt_utils import _get_learning_rate, log_metrics, metrics_format, save_metrics, save_state
 
     def __init__(
         self,
@@ -3892,7 +3892,7 @@ class Trainer:
         elif args.optim == OptimizerNames.ADAGRAD:
             optimizer_cls = torch.optim.Adagrad
         elif args.optim == OptimizerNames.LOMO:
-            optimizer_cls = pytorch_optimizer.optimizer.lomo.LOMO
+            optimizer_cls = LOMO
         else:
             raise ValueError(f"Trainer cannot instantiate unsupported optimizer: {args.optim}")
         return optimizer_cls, optimizer_kwargs
