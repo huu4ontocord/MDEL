@@ -39,7 +39,7 @@ from peft import LoraConfig, get_peft_model
 config = LoraConfig(
     r=8,
     lora_alpha=32,
-    target_modules=["query_key_value"],
+    #target_modules=["query_key_value"],
     lora_dropout=0.05,
     bias="none",
     task_type="CAUSAL_LM"
