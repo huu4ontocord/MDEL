@@ -53,7 +53,7 @@ import transformers
 tokenizer.pad_token = tokenizer.eos_token
 import transformers
 
-from .qlora_lomo import Trainer
+from qlora_lomo import Trainer
 trainer = Trainer(
     model=model,
     train_dataset=data["train"],
