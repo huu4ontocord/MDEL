@@ -1,13 +1,13 @@
 # Lora-X - A library to support long context multimodal, multilingual, and multi-domain training
 
-TODO: confirm a100 40gb training at 70b 8K context on JUWELS
-TODO: work on ways to increase length given memory constraint
-   -  test different lora configs and methods for improving perforamnce 
-TODO: use the ntk scaling in the HF 
-TODO: Add LLavaR code - in particular the projection layer
-TODO: integrate bpt and test speed difference
-TODO: add Hummingbird's dynamic token and media loading during training
-TODO: add proxy embeddings (m-clip)
+- TODO: confirm a100 40gb training at 70b 8K context on JUWELS
+- TODO: work on ways to increase length given memory constraint
+   +  test different lora configs and methods for improving perforamnce 
+- TODO: use the ntk scaling in the HF 
+- TODO: Add LLavaR code - in particular the projection layer
+- TODO: integrate bpt and test speed difference
+- TODO: add Hummingbird's dynamic token and media loading during training
+- TODO: add proxy embeddings (m-clip)
 
 # Multinode LoRA + Flash + DS 
 This project adds LoRA, Flash attn patch and DS (Deepspeed) to [Scaled Rope](https://github.com/jquesnelle/scaled-rope) that can be run multinode.
