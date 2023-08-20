@@ -1,4 +1,4 @@
-#from https://github.com/jordiclive/scaled-rope/blob/hf_version/data.py
+#from https://github.com/jordiclive/scaled-rope
 from dataclasses import dataclass
 from typing import NamedTuple, Optional, Union
 
