@@ -1,5 +1,7 @@
 # Lora-X - A library to support long context multimodal, multilingual, and multi-domain training
 
+Lora-X is intended to create a base model for MDEL. We are aiming at llama2 architecture.
+
 - TODO: confirm a100 40gb training at 70b 8K context on JUWELS
 - TODO: work on ways to increase length given memory constraint
    +  test different lora configs and methods for improving perforamnce 
