@@ -11,6 +11,13 @@ Lora-X is intended to create a base model for MDEL. We are aiming at llama2 arch
 - TODO: add Hummingbird's dynamic token and media loading during training
 - TODO: add proxy embeddings (m-clip)
 
+# Credits
+This library is based on the code of participants in MDEL
+- https://github.com/jordiclive/scaled-rope (which is in turn based on jquesnelle/scaled-rope and Open Assistant code)
+- https://github.com/arnavdantuluri/long-context-transformers
+- reference for Hummingbird
+  
+
 # Multinode LoRA + Flash + DS 
 This project adds LoRA, Flash attn patch and DS (Deepspeed) to [Scaled Rope](https://github.com/jquesnelle/scaled-rope) that can be run multinode.
 
