@@ -1,0 +1,10 @@
+1. Change the cache directory and SBATCH output in juwels_booster.sh
+
+
+2. Use an absolute path for config in config.py.
+Eg.     configs = read_yamls("configs/") becomes configs = read_yamls("/p/home/jusers/persaud1/juwels/persaud1/scaled-rope/configs/")
+
+
+3. Launch the script
+
+Eg. sbatch juwels_booster.sh
