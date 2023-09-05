@@ -214,7 +214,9 @@ class ClusterAnalysis(nn.Module):
                     break
                         
                 need_more = False
-                        
+                
+                assert prefered_leaf_node_size <= max_cluster_size, 'prefered_leaf_node_size Must not exceed max_cluster_size'
+
                 if times <= num_times - 2:
                     for label in new_labels:
                         if len(clusters[label]) < prefered_leaf_node_size:
