@@ -1,8 +1,3 @@
-from transformers import AutoModelForCausalLM, AutoTokenizer
-import torch
-from torch.nn import PairwiseDistance
-import numpy 
-
 def load_models(model_names):
     """
     takes in list of model names and loads model and corresponding tokenizers
@@ -26,37 +21,47 @@ def load_models(model_names):
     return models, tokenizers
 
 def generateNextTokenFromExpert(prompt, tokenizer, model):
-  """
-  takes in prompt, tokenizer and model which should be passed from topKFilter
-  as topKFilter determines which domains are most relevant given the context
-  returns the predicted token of the model and its corresponding probability
-  """
-  inputs = tokenizer(prompt)
-  print(inputs['input_ids'])
-  sizeOfInputs = len(inputs['input_ids']) 
-  outputs = model(**inputs, max_new_tokens=1, 
-                  return_dict_in_generate=True,
-                  output_scores=True
-                  )
-  predToken = outputs['sequences'][0][sizeOfInputs] # pull out first token only
-  predTokenProb = outputs['scores'][0][0]['predToken']
+    """
+    takes in prompt, tokenizer and model which should be passed from topKFilter
+    as topKFilter determines which domains are most relevant given the context
+    returns the predicted token of the model and its corresponding probability
+    """
+    input_ids = tokenizer.encode(prompt, return_tensors="pt")
+    generated_tokens = []
 
-  return predToken, predTokenProb
+    for _ in range(2):
+        with torch.no_grad():
+            output = model(input_ids)
+
+        next_token_logits = output.logits[:, -1, :] 
+        next_token_probabilities = next_token_logits.softmax(dim=-1)
+
+        # Sample the next token based on probabilities
+        next_token = torch.multinomial(next_token_probabilities, num_samples=1)
+
+        # Get the probability of the chosen token
+        chosen_token_probability = next_token_probabilities[0, next_token.item()].item()
+
+        generated_tokens.append(next_token.item())
+        input_ids = torch.cat((input_ids, next_token), dim=-1)
+
+    generated_text = tokenizer.decode(generated_tokens)
+    return generated_text, chosen_token_probability
 
 def findEnsembleWeights(embedder, prompt, T, clusterCenters):
   """
-  takes in embedding of context and cluster center of domain, and T parameter 
+  takes in cluster centers and embedder using in clustering, and prompt, and T parameter
   calculates weighted logit between context and cluster center
   """
   ensembleWeights = []
   pdist = torch.nn.PairwiseDistance(p=2)
   for domain, clusterCenter in enumerate(clusterCenters): # assuming modelList and clusterCenters have matching indices
-    embeddedInput = embedder.encode(prompt) 
+    embeddedInput = embedder.encode(prompt)
     clusterCenter = torch.tensor(clusterCenter)
-    embeddedInput = torch.tensor(embeddedInput) 
+    embeddedInput = torch.tensor(embeddedInput) # TODO: do we need to tensor-ify them?
     ensembleWeights.append(torch.exp(-1 * torch.pow(pdist(embeddedInput, clusterCenter),2) / T))
 
-  return torch.tensor(ensembleWeights) 
+  return torch.tensor(ensembleWeights) # TODO: return torch.tensor instead of list?
 
 
 
@@ -93,22 +98,23 @@ def findNextToken(embedder, models, tokenizers, prompt, k, T, clusterCenters):
 
 def generateSequence(embedder, prompt, end_token, models, tokenizers, maxLength, k, T, clusterCenters):
   """
-  takes in prompt, end_token which ideally is uniform across all tokenizers, 
+  takes in prompt, end_token which ideally is uniform across all tokenizers,
   parameter k, temperature T and cluster centers
   finds most likely token from most relevant domains based on prompt
   builds sequence until end token is generated or maxLength is reached
   """
   currToken, currSequence = None, prompt
-  while currToken != end_token or len(currSequence) < maxLength:
-    currToken = findNextToken(embedder, models, tokenizers, prompt, k, T, clusterCenters)
-    currSequence = torch.cat((currSequence, currToken), dim=0)
+  while len(currSequence) < maxLength:# or currToken != end_token:
+    currToken, currTokenProb = findNextToken(embedder, models, tokenizers, currSequence, k, T, clusterCenters)
+    print("currToken: ", currToken, len(currSequence) < maxLength)
+    currSequence = currSequence + currToken
 
   return generateSequence
 
 
-def run_inference(embedder, model_names, input_file, output_file, end_token, maxLength, k, T, clusterCenters):
+def run_inference(embedder, model_names, input_file, output_file, end_token, maxLength, k, T, clusterCenters, models, tokenizers):
 
-    models, tokenizers = load_models(model_names) # TODO: fails to recognize models even with credentials
+    models, tokenizers = load_models(model_names) 
 
     with open(input_file, 'r') as file:
         input_data = file.readlines()
