@@ -106,7 +106,6 @@ def generateSequence(embedder, prompt, end_token, models, tokenizers, maxLength,
   currToken, currSequence = None, prompt
   while len(currSequence) < maxLength:# or currToken != end_token:
     currToken, currTokenProb = findNextToken(embedder, models, tokenizers, currSequence, k, T, clusterCenters)
-    print("currToken: ", currToken, len(currSequence) < maxLength)
     currSequence = currSequence + currToken
 
   return generateSequence
