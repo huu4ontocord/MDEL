@@ -131,7 +131,7 @@ def main(n_clusters=16, balanced=False, output_dir=Path('cluster_output/'), shuf
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--num-clusters', required=True, type=int)
+    parser.add_argument('--n-clusters', required=True, type=int)
     parser.add_argument('--balanced', action='store_true')
     parser.add_argument('--output-dir', required=True, type=Path)
     parser.add_argument('--eval-only', action='store_true')
@@ -144,7 +144,7 @@ if __name__ == '__main__':
 
     if not args.eval_only:
         kmeans = main(
-            n_clusters=args.num_clusters,
+            n_clusters=args.n_clusters,
             balanced=args.balanced,
             output_dir=args.output_dir,
             take_sample=args.take_sample,
@@ -159,4 +159,11 @@ if __name__ == '__main__':
 
 # Usage
 
-# python3 train_clusterer.py --num-clusters 4 --output-dir output/ --take-sample 128 --embed-only False --visualize
+# python3 train_clusterer.py --n-clusters 4 --output-dir output/ --take-sample 128 --embed-only False --visualize
+
+# Warning! You need to install kmeans from https://github.com/kernelmachine/balanced-kmeans.git
+
+# cd ..
+# git clone https://github.com/kernelmachine/balanced-kmeans.git
+# cd balanced-kmeans
+# pip3 install -e .
