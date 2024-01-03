@@ -194,6 +194,34 @@ def generateSequence(embedder, prompt_data, end_token, clusterCenters, models, t
   return currSequence
 
 
+def load_models(model_names):
+    """
+    Loads models and tokenizers as per the ids provided in model_names.
+
+    Parameters:
+    model_names: takes in list of model names and loads model and corresponding tokenizers
+
+    Returns:
+    Separate lists of models and tokenizers to be accessed by other functions later
+    """
+    models = []
+    tokenizers = []
+
+    for model_name in model_names:
+        model = AutoModelForCausalLM.from_pretrained(model_name)
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+
+        # Freeze the parameters of the loaded models if needed
+        model.eval()
+        for param in model.parameters():
+            param.requires_grad = False
+
+        models.append(model)
+        tokenizers.append(tokenizer)
+
+    return models, tokenizers
+
+
 def run_inference(embedder, model_names, 
                   input_file, output_file, end_token, maxLength, k, T, clusterCenters): 
     """
